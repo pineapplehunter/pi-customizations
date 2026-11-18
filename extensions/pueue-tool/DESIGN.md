@@ -160,7 +160,7 @@ logs as needed and continuing the original task.
 - [x] Remove the obsolete blocking wait implementation.
 - [x] Complete integration tests, packaging checks, and all-systems evaluation.
 - [x] Bundle `pueue-tool/index.ts` and this design documentation in the
-  `pi-customizations` Pi package alongside `skills/pueue`.
+  `pi-customizations` Pi package alongside `skills/personal/pueue`.
 
 ## Validation
 

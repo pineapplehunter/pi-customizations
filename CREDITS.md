@@ -15,14 +15,16 @@ TypeScript. Subsequent local changes are recorded in Git.
 
 ## Anthropic skills
 
-The eleven vendored skill directories listed in `upstream.json` were copied
-unmodified from [anthropics/skills](https://github.com/anthropics/skills), revision
+The eleven vendored skill directories under `skills/anthropic/`, listed in
+`upstream.json`, were copied unmodified from
+[anthropics/skills](https://github.com/anthropics/skills), revision
 `1780c5e5a552fd4d1c9d6a7b0cab26b0c2bef064` (the previous Nix flake pin).
 Credit: Anthropic, PBC, and the contributors to that repository.
 
 Each selected skill has an Apache-2.0 `LICENSE.txt`, retained alongside all
-scripts, references, and assets. Fonts in `skills/canvas-design/canvas-fonts/`
-retain their separate SIL Open Font License notices and author credits. Those
+scripts, references, and assets. Fonts in
+`skills/anthropic/canvas-design/canvas-fonts/` retain their separate SIL Open Font
+License notices and author credits. Those
 font licenses are not replaced by this repository's Apache license.
 
 `doc-coauthoring` was previously selected by Nix but is deliberately not vendored:

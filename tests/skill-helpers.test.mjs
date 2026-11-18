@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
 function helper(name, args) {
-  const script = fileURLToPath(new URL(`../skills/${name}.ts`, import.meta.url));
+  const script = fileURLToPath(new URL(`../skills/personal/${name}.ts`, import.meta.url));
   return spawnSync(process.execPath, [script, ...args], { encoding: "utf8" });
 }
 

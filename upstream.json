@@ -3,7 +3,7 @@
     "repository": "https://github.com/anthropics/skills",
     "revision": "1780c5e5a552fd4d1c9d6a7b0cab26b0c2bef064",
     "sourceDirectory": "skills",
-    "destinationDirectory": "skills",
+    "destinationDirectory": "skills/anthropic",
     "license": "Apache-2.0; bundled fonts retain SIL-OFL-1.1 notices",
     "skills": [
       "algorithmic-art",

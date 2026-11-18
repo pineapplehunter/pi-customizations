@@ -13,7 +13,7 @@ runner paths, and puts it directly in
 name using the inherited parent PATH. There is no CLI-specific wrapper.
 
 Run `pi-update` before launching subagents. See
-[the subagents skill](../skills/subagents/SKILL.md) for the workflow.
+[the subagents skill](../skills/personal/subagents/SKILL.md) for the workflow.
 This is reference documentation; the launcher and runner remain in
 [nixos-config](https://github.com/pineapplehunter/nixos-config/tree/main/home/pi-coding-agent/pineapplehunter/tools/subagents).
 

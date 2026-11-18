@@ -31,7 +31,7 @@ directory. Helpers require Node.js 22.18 or newer, with native TypeScript suppor
 Resolve or create the task directory with the bundled helper:
 
 ```bash
-TODO_SKILL="/path/to/package/skills/todo"
+TODO_SKILL="/path/to/package/skills/personal/todo"
 TASK_DIR=$(node "$TODO_SKILL/scripts/task-dir.ts" intree)
 # Or:
 TASK_DIR=$(node "$TODO_SKILL/scripts/task-dir.ts" tmp)

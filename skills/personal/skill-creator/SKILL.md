@@ -88,7 +88,7 @@ may supply it from an installed snapshot rather than a fixed home skills directo
 The initializer requires Node.js 22.18 or newer (native TypeScript support):
 
 ```bash
-SKILL_CREATOR="/path/to/package/skills/skill-creator"
+SKILL_CREATOR="/path/to/package/skills/personal/skill-creator"
 node "$SKILL_CREATOR/scripts/init-skill.ts" <name> --path <parent-directory>
 ```
 

@@ -13,7 +13,7 @@ Pi package does not install them. Check `command -v pi-subagent` and
 `PI_CODING_AGENT_DIR` before use. Without that setup, do the work locally rather
 than assuming ordinary Pi provides these integrations. The authoritative
 `SUBAGENTS.md` remains beside the host launcher sources; a package may include
-`../../references/SUBAGENTS.md` (relative to this skill) for reference only.
+`../../../references/SUBAGENTS.md` (relative to this skill) for reference only.
 
 ## Rules
 

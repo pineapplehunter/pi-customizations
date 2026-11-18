@@ -5,6 +5,16 @@ package declarations. Resources are a conventional Pi package: `extensions/`
 and complete `skills/` directories are discovered without generated manifests.
 Nix is optional for using the resources; the starter flake is only a dev shell.
 
+Skills are grouped by provenance:
+
+- `skills/personal/` — personal skills maintained here.
+- `skills/anthropic/` — vendored Anthropic skills tracked in `upstream.json`.
+
+Pi discovers both groups recursively; skill names and `/skill:<name>` commands
+are unchanged. `pi-update` copies the entire `skills/` tree, so no updater change
+is needed. Path-based package filters referencing the old `skills/<name>/` paths
+must be updated to include the group.
+
 ## Personal update workflow (NixOS)
 
 `pi-update` is implemented and installed by
@@ -80,10 +90,11 @@ their own optional runtime/tool requirements; install those only when needed.
 
 ## Editing and checks
 
-Add extensions under `extensions/` or full skills (scripts/assets included) under
-`skills/`. Edit external package sources in `settings.json`. Adding other managed
-Pi settings requires an explicit updater change rather than overwriting users'
-preferences. Project-specific NixOS skills remain in nixos-config's `.pi/skills`.
+Add extensions under `extensions/` or full personal skills (scripts/assets
+included) under `skills/personal/`. Keep reviewed Anthropic copies under
+`skills/anthropic/`. Edit external package sources in `settings.json`. Adding
+other managed Pi settings requires an explicit updater change rather than
+overwriting users' preferences. Project-specific NixOS skills remain in nixos-config's `.pi/skills`.
 
 ```sh
 node --test tests/*.test.mjs
@@ -101,6 +112,6 @@ and the original licenses kept with vendored skills and font assets.
 
 To refresh Anthropic skills, fetch the desired revision of `anthropics/skills`,
 review each selected directory's license (and nested assets), replace only the
-directories listed in `upstream.json`, and update its revision and credits in the
-same commit. `pi-update` installs the repository's reviewed copies; it does not
-silently refresh vendored upstream work.
+directories under `skills/anthropic/` listed in `upstream.json`, and update its
+revision and credits in the same commit. `pi-update` installs the repository's
+reviewed copies; it does not silently refresh vendored upstream work.

@@ -7,10 +7,11 @@ description: "Launch, resume, and inspect Pi subagents. Use for focused reviews 
 
 ## Prerequisites
 
-This skill requires the separate host-side `pi-subagent` launcher/runner,
-Bubblewrap, and private Pueue setup supplied by the nixos-config wrapper; this
-Pi package does not install them. Check `command -v pi-subagent` and
-`PI_CODING_AGENT_DIR` before use. Without that setup, do the work locally rather
+This skill requires the host-side `pi-subagent` launcher/runner and Bubblewrap
+from the nixos-config wrapper, plus the Pueue core and private subagent adapter
+in the installed snapshot. The Pueue extension creates its own daemon; this
+Pi package does not install the host launcher or sandbox. Check
+`command -v pi-subagent` and `PI_CODING_AGENT_DIR` before use. Without that setup, do the work locally rather
 than assuming ordinary Pi provides these integrations. The authoritative
 `SUBAGENTS.md` remains beside the host launcher sources; a package may include
 `../../../references/SUBAGENTS.md` (relative to this skill) for reference only.
@@ -33,7 +34,8 @@ than assuming ordinary Pi provides these integrations. The authoritative
   Name is a label. `--run` is internal; no launcher status/cleanup commands or
   state-root overrides exist. State is `/tmp/pi-subagent-state/SESSION_ID`.
 - Optional `--no-inherit-resources` disables extension/skill discovery except
-  the installed snapshot's Pueue completion extension. Pi built-ins/tools/auth/settings remain;
+  the installed snapshot's Pueue core and private subagent adapter.
+  Pi built-ins/tools/auth/settings remain;
   prompts/themes and package resolution are unchanged. Repeat it on resume;
   existing history is not erased. Use fresh sessions for clean-reference tests.
 - SIMA: one brief with common requirements/named jobs, independent copies/sessions,

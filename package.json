@@ -13,7 +13,11 @@
     "@earendil-works/pi-tui": "*",
     "typebox": "*"
   },
+  "pi": {
+    "extensions": ["extensions/*.ts", "extensions/*/index.ts"],
+    "skills": ["skills", "extensions/pueue-tool/skills"]
+  },
   "scripts": {
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs extensions/pueue-tool/tests/*.test.mjs"
   }
 }

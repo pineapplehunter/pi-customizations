@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-only
 import { statSync } from "node:fs";
 import { join } from "node:path";
-import type { Task } from "./logs.js";
+import type { Task } from "./hooks.ts";
 
 export function parseInactivityTimeout(value: string): number | undefined {
   if (value === "off") return 0;

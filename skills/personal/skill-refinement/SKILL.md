@@ -10,8 +10,9 @@ alone. Follow `skill-creator` for format/discovery and `subagents` for delegatio
 Edit the skill's source checkout; if installation is declarative or read-only,
 change its upstream source rather than the generated copy. The delegated trials
 below require the host integration described in `subagents` (`pi-subagent`,
-Bubblewrap, private Pueue, and `PI_CODING_AGENT_DIR`); ordinary Pi does not supply
-it. If unavailable, report that limitation instead of attempting launches.
+Bubblewrap, the Pueue core/private subagent adapter, and
+`PI_CODING_AGENT_DIR`); ordinary Pi does not supply the host launcher or sandbox.
+If unavailable, report that limitation instead of attempting launches.
 Never delegate from a child; test workers answer hypothetical parent scenarios
 without nesting.
 
@@ -77,9 +78,9 @@ pi-subagent trial /tmp/trial-workspace /tmp/quiz.md \
   --context "Evaluate only $PWD/REFERENCE.md; do not load installed skills."
 ```
 
-This disables automatic extensions/skills, retaining the installed Pueue completion
-extension and built-in tool selection. Authentication, environment, settings,
-project instructions, prompts, and themes remain; packages are still resolved
+This disables automatic extensions/skills, retaining the installed Pueue core,
+private subagent adapter, and built-in tool selection. Authentication,
+environment, settings, project instructions, prompts, and themes remain; packages are still resolved
 and resource files remain readable. It is not a filesystem/credential security
 boundary, so keep explicit reference restrictions and read audits. Custom
 extension tools/providers are unavailable: if required, use normal inheritance

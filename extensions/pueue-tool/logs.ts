@@ -1,15 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-only
 import { spawn, type ChildProcess } from "node:child_process";
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
 import { matchesKey, Text, truncateToWidth, visibleWidth, type TUI } from "@earendil-works/pi-tui";
-
-export interface Task {
-  id: number;
-  command: string;
-  original_command?: string;
-  label?: string | null;
-  group: string;
-  status: string | { Done?: { start?: string; end: string; result: unknown } };
-}
+import type { LogFormat, Task } from "./hooks.ts";
 
 export function taskStatus(task: Task): string {
   if (typeof task.status === "string") return task.status;
@@ -22,10 +15,6 @@ export function taskStatus(task: Task): string {
 
 const MAX_LINES = 5_000;
 const MAX_LINE_LENGTH = 16_384;
-
-function taskName(task: Task): string {
-  return (task.label?.replace(/^subagent:[^:]+:/, "") || task.original_command || task.command).replace(/\s+/g, " ");
-}
 
 function statusLabel(task: Task): string {
   const result = typeof task.status === "object" ? task.status.Done?.result : undefined;
@@ -42,55 +31,6 @@ function statusColor(task: Task): Parameters<Theme["fg"]>[0] {
   if (status === "Running") return "warning";
   if (typeof task.status === "object" && task.status.Done) return status === "Killed" ? "muted" : "error";
   return "muted";
-}
-
-function contentText(content: any): string {
-  if (typeof content === "string") return content;
-  return Array.isArray(content) ? content.map((part) => part.type === "text" ? part.text : `[${part.type}]`).join("\n") : "";
-}
-
-// Parse only observable RPC activity, not hidden reasoning or model context.
-export class ActivityParser {
-  private streamed = false;
-
-  parse(line: string): string {
-    let event: any;
-    try { event = JSON.parse(line); } catch { return line + "\n"; }
-    if (!event || typeof event !== "object") return line + "\n";
-    switch (event.type) {
-      case "agent_start": return "[Agent started]\n";
-      case "message_start":
-        if (event.message?.role === "assistant") { this.streamed = false; return "\n[Assistant]\n"; }
-        return "";
-      case "message_update":
-        if (event.assistantMessageEvent?.type === "text_delta") {
-          this.streamed = true;
-          return event.assistantMessageEvent.delta;
-        }
-        return "";
-      case "message_end":
-        if (event.message?.role === "assistant") {
-          const text = this.streamed ? "" : contentText(event.message.content);
-          return text + (event.message.errorMessage ? `\n[Error] ${event.message.errorMessage}` : "") + "\n";
-        }
-        if (event.message?.role === "custom" && event.message.customType === "pueue-completion") {
-          return `\n[Task completion]\n${event.message.details?.summary ?? contentText(event.message.content)}\n`;
-        }
-        return "";
-      case "tool_execution_start": return `\n[Tool] ${event.toolName} ${JSON.stringify(event.args)}\n`;
-      case "tool_execution_end": return `\n[${event.isError ? "Tool error" : "Result"}] ${event.toolName}\n${contentText(event.result?.content)}\n`;
-      case "agent_end": return "\n[Agent run ended]\n";
-      case "extension_error": return `[Error] ${event.error}\n`;
-      case "response": return event.success === false ? `[Error] ${event.error}\n` : "";
-      case "extension_ui_request": return event.method === "notify" ? `[Notice] ${event.message}\n` : "";
-      case "entry_appended":
-        if (event.entry?.customType === "pueue-subagent-exit") {
-          return event.entry.data?.success ? "[Subagent finished]\n" : `[Subagent failed] ${event.entry.data?.error}\n`;
-        }
-        return "";
-      default: return "";
-    }
-  }
 }
 
 export class LogViewer {
@@ -115,6 +55,8 @@ export class LogViewer {
     private theme: Theme,
     private done: () => void,
     private queryTasks: () => Promise<Task[]>,
+    private formatTask: (task: Task) => LogFormat,
+    private config: () => string | undefined,
     tasks: Task[],
     taskId?: number,
   ) {
@@ -137,7 +79,8 @@ export class LogViewer {
       this.error = "";
       const task = this.tasks.find((task) => task.id === this.opened);
       if (task) {
-        const activity = task.group === "subagent" && task.label?.startsWith("subagent:") && !this.raw;
+        const presentation = this.formatTask(task);
+        const parseLine = !this.raw ? presentation.parseLine : undefined;
         const running = taskStatus(task) === "Running";
         const source = `${task.id}:${JSON.stringify(task.status)}:${this.raw}`;
         if (source !== this.source) {
@@ -147,9 +90,11 @@ export class LogViewer {
           this.partial = "";
           this.text.setText("");
           this.offset = 0;
-          const parser = new ActivityParser();
           let pending = "";
-          this.process = spawn("pueue", running ? ["follow", "--lines", String(MAX_LINES), String(task.id)] : ["log", "--full", String(task.id)]);
+          const config = this.config();
+          if (!config) throw new Error("Pueue is unavailable.");
+          const args = running ? ["follow", "--lines", String(MAX_LINES), String(task.id)] : ["log", "--full", String(task.id)];
+          this.process = spawn("pueue", ["--config", config, ...args]);
           const append = (text: string) => {
             if (this.disposed || this.source !== source) return;
             this.append(text);
@@ -157,11 +102,11 @@ export class LogViewer {
           };
           this.process.stdout?.setEncoding("utf8");
           this.process.stdout?.on("data", (chunk: string) => {
-            if (!activity) return append(chunk);
+            if (!parseLine) return append(chunk);
             pending += chunk;
             let newline: number;
             while ((newline = pending.indexOf("\n")) !== -1) {
-              append(parser.parse(pending.slice(0, newline)));
+              append(parseLine(pending.slice(0, newline)));
               pending = pending.slice(newline + 1);
             }
           });
@@ -169,7 +114,7 @@ export class LogViewer {
           this.process.stderr?.on("data", append);
           this.process.on("error", (error) => append(`[Viewer error] ${error.message}\n`));
           this.process.on("close", () => {
-            if (pending) append(parser.parse(pending));
+            if (pending && parseLine) append(parseLine(pending));
           });
         }
       } else if (this.opened !== undefined) {
@@ -248,7 +193,7 @@ export class LogViewer {
     const rule = () => th.fg("borderMuted", `├${"─".repeat(Math.max(0, width - 2))}┤`);
     const task = this.tasks.find((task) => task.id === this.opened);
     const selected = this.tasks[this.selected];
-    const title = pad(th.fg("accent", th.bold(task ? ` Task ${task.id}  ${taskName(task)} ` : " Pueue tasks ")), Math.max(1, width - 2)).trimEnd();
+    const title = pad(th.fg("accent", th.bold(task ? ` Task ${task.id}  ${this.formatTask(task).name} ` : " Pueue tasks ")), Math.max(1, width - 2)).trimEnd();
     const top = th.fg("borderAccent", "╭") + title + th.fg("borderAccent", "─".repeat(Math.max(0, width - 2 - visibleWidth(title))) + "╮");
     const output = [top];
     let body: string[];
@@ -278,7 +223,7 @@ export class LogViewer {
           focused ? th.fg("accent", "› ") : "  ",
           th.fg("muted", String(task.id)),
           th.fg(statusColor(task), narrow ? glyph : label),
-          th.fg(focused ? "accent" : "text", taskName(task)),
+          th.fg(focused ? "accent" : "text", this.formatTask(task).name),
           th.fg("dim", task.group === "default" ? "—" : task.group),
         );
         return focused ? th.bg("selectedBg", pad(text)) : text;
@@ -286,11 +231,11 @@ export class LogViewer {
       if (!body.length) body = [th.fg("muted", "No retained tasks. Queue a command to see its logs.")];
       information = selected
         ? th.fg("dim", "Command  ") + th.fg("toolOutput", (selected.original_command ?? selected.command).replace(/\s+/g, " "))
-        : th.fg("dim", "Only this session's Pueue queue is shown.");
+        : th.fg("dim", "Only this Pi instance's Pueue queue is shown.");
       help = inner < 30 ? "↑↓  Enter  Esc" : inner < 40 ? "↑↓ select  Enter logs  Esc close" : "↑↓ Select    Enter Open logs    Esc Close";
     } else {
       const status = task ? th.fg(statusColor(task), statusLabel(task)) : th.fg("error", "Task removed");
-      const mode = task?.group === "subagent" && !this.raw ? "Activity" : "Raw output";
+      const mode = task && !this.raw ? this.formatTask(task).mode : "Raw output";
       if (!compact) output.push(row(`${status}${task?.group !== "default" && task ? th.fg("muted", `   ${task.group}`) : ""}${th.fg("dim", `   ${mode}`)}`), rule());
       const commandRows = new Text(th.fg("dim", "$ ") + (task?.original_command ?? task?.command ?? ""), 0, 0).render(inner);
       output.push(...commandRows.map((line) => row(line)));
@@ -322,7 +267,10 @@ export class LogViewer {
   }
 }
 
-export function registerLogViewer(pi: ExtensionAPI, queryTasks: () => Promise<Task[]>): void {
+export function registerLogViewer(
+  pi: ExtensionAPI, queryTasks: () => Promise<Task[]>,
+  formatTask: (task: Task) => LogFormat, config: () => string | undefined,
+): void {
   let active: LogViewer | undefined;
   pi.registerCommand("pueue-logs", {
     description: "Browse Pueue tasks and live/finished logs, optionally by task ID",
@@ -338,7 +286,7 @@ export function registerLogViewer(pi: ExtensionAPI, queryTasks: () => Promise<Ta
         let terminal: TUI | undefined;
         await ctx.ui.custom<void>((tui, theme, _keys, done) => {
           terminal = tui;
-          active = new LogViewer(tui, theme, done, queryTasks, tasks, taskId);
+          active = new LogViewer(tui, theme, done, queryTasks, formatTask, config, tasks, taskId);
           return active;
         }, { overlay: true, overlayOptions: () => ({
           width: Math.min(110, Math.max(1, (terminal?.terminal.columns ?? 80) - 4)),

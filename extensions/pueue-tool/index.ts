@@ -1,16 +1,15 @@
-import { execFile } from "node:child_process";
-import { mkdirSync, readdirSync, unlinkSync, watch, type FSWatcher } from "node:fs";
+// SPDX-License-Identifier: GPL-3.0-only
+import { readdirSync, unlinkSync, watch, type FSWatcher } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { registerLogViewer, type Task } from "./logs.js";
-import { InactivityMonitor, parseInactivityTimeout } from "./inactivity.js";
+import { getRuntime, queryTasks, startDaemon, stopDaemon, type Runtime } from "./daemon.ts";
+import { inlineCode, type CompletionFormat, type LogFormat, type QueueState, type Task } from "./hooks.ts";
+import { parseInactivityTimeout } from "./inactivity.ts";
+import { registerLogViewer } from "./logs.ts";
 
 const MESSAGE_TYPE = "pueue-completion";
-const PROCESSED_TYPE = "pueue-completions-processed";
 const RECONCILE_MS = 10_000;
 const STATUS_KEY = "usage-pueue";
-const INACTIVITY_SETTING = "pueue-inactivity-timeout";
-const DEFAULT_INACTIVITY_MS = 30 * 60_000;
 
 function taskKey(task: Task): string | undefined {
   if (typeof task.status !== "object" || !task.status.Done) return undefined;
@@ -33,82 +32,66 @@ function runningStatus(tasks: Task[]): string | undefined {
   return `pueue: ${groups.map(([group, count]) => `${count}(${group})`).join(" ")}`;
 }
 
-function queryTasks(): Promise<Task[]> {
-  return new Promise((resolve, reject) => {
-    execFile("pueue", ["status", "--json"], { encoding: "utf8", timeout: 5_000, maxBuffer: 8 * 1024 * 1024 }, (error, stdout) => {
-      if (error) return reject(error);
-      try {
-        const status = JSON.parse(stdout) as { tasks: Record<string, Task> };
-        resolve(Object.values(status.tasks));
-      } catch (error) {
-        reject(error);
-      }
-    });
-  });
-}
-
-function inlineCode(text: string): string {
-  const ticks = "`".repeat(Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length)) + 1);
-  return `${ticks} ${text} ${ticks}`;
-}
-
-function completionMessage(tasks: Task[]) {
-  const summaries: string[] = [];
-  const blocks = tasks.map((task) => {
-    const done = typeof task.status === "object" ? task.status.Done : undefined;
-    const subagent = task.group === "subagent" && task.label?.match(/^subagent:([^:]+):(.+)$/);
-    const label = task.label ? ` ${JSON.stringify(subagent ? subagent[2] : task.label)}` : "";
-    const group = task.group !== "default" ? ` (${task.group})` : "";
-    const elapsed = done?.start ? Date.parse(done.end) - Date.parse(done.start) : NaN;
-    const duration = Number.isFinite(elapsed) && elapsed >= 0 ? ` (elapsed: ${(elapsed / 1000).toFixed(1)}s)` : "";
-    const summary = `Task ${task.id}${label}${group}: ${JSON.stringify(done?.result)}${duration}.`;
-    if (subagent) {
-      summaries.push(summary);
-      const name = `'${subagent[2].replace(/'/g, "'\\''")}'`;
-      const resume = `pi-subagent ${name} WORKSPACE FOLLOW_UP_FILE --resume ${subagent[1]}`;
-      return `${summary}  \nRead ${inlineCode(`/tmp/pi-subagent-state/${subagent[1]}/response.md`)}; on failure inspect ${inlineCode(`pueue log ${task.id}`)}.  \nResume with ${inlineCode(resume)} (repeat original context and resource options). Remove the workspace when no longer needed; retain session state if you may resume.`;
-    }
-    const withCommand = `${summary}  \n${inlineCode(task.original_command ?? task.command)}`;
-    summaries.push(withCommand);
-    return `${withCommand}  \nInspect output with ${inlineCode(`pueue log ${task.id}`)}.`;
-  });
-  return {
-    customType: MESSAGE_TYPE,
-    content: `${blocks.join("\n\n")} Process these results and continue the original task.`,
-    display: true,
-    details: { keys: tasks.map(taskKey), summary: summaries.join("\n\n") },
-  };
-}
-
 export default function (pi: ExtensionAPI) {
-  const directory = process.env.PI_PUEUE_NOTIFY_DIR;
-  if (!directory) return; // Never subscribe to the host daemon accidentally.
-
-  registerLogViewer(pi, queryTasks);
-
-  const child = process.env.PI_SUBAGENT_ROLE === "child";
-  const inbox = join(directory, "completions");
-  const inactivity = new InactivityMonitor(directory);
-  let inactivityMs = DEFAULT_INACTIVITY_MS;
+  let runtime: Runtime | undefined;
   let context: ExtensionContext | undefined;
   let watcher: FSWatcher | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let generation = 0;
   let serial: Promise<unknown> = Promise.resolve();
-  let processed = new Set<string>();
-  let queued = new Set<string>();
-  let included = new Set<string>();
-  let paused = false;
-  let readyToExit = false;
+  const included = new Set<string>();
+  let ready = false;
   let failure: string | undefined;
 
-  // Do not hold this queue while awaiting a model run: an idle sendMessage
-  // starts one, whose pre-settlement handler also needs to query Pueue.
   function exclusive<T>(action: () => Promise<T>): Promise<T> {
     const next = serial.then(action);
     serial = next.catch(() => undefined);
     return next;
+  }
+
+  function formatLog(task: Task): LogFormat {
+    const presentation: LogFormat = {
+      task, name: (task.label || task.original_command || task.command).replace(/\s+/g, " "),
+      mode: "Raw output",
+    };
+    pi.events.emit("pueue:format-log", presentation);
+    return presentation;
+  }
+
+  registerLogViewer(pi, () => {
+    if (!runtime || failure) return Promise.reject(new Error(failure ?? "Pueue is unavailable in this Pi mode."));
+    return queryTasks(runtime);
+  }, formatLog, () => runtime?.config);
+
+  function publishState(): void {
+    const state: QueueState = { ready: ready && !runtime?.paused, error: failure ?? runtime?.error };
+    if (state.error) state.ready = false;
+    pi.events.emit("pueue:state", state);
+  }
+
+  function completionMessage(tasks: Task[]) {
+    const blocks = tasks.map((task) => {
+      const done = typeof task.status === "object" ? task.status.Done : undefined;
+      const label = task.label ? ` ${JSON.stringify(task.label)}` : "";
+      const group = task.group !== "default" ? ` (${task.group})` : "";
+      const elapsed = done?.start ? Date.parse(done.end) - Date.parse(done.start) : NaN;
+      const duration = Number.isFinite(elapsed) && elapsed >= 0 ? ` (elapsed: ${(elapsed / 1000).toFixed(1)}s)` : "";
+      const summary = `Task ${task.id}${label}${group}: ${JSON.stringify(done?.result)}${duration}.`;
+      const command = `${summary}  \n${inlineCode(task.original_command ?? task.command)}`;
+      const presentation: CompletionFormat = {
+        task, summary: command,
+        content: `${command}${task.path ? `  \nWorking directory: ${inlineCode(task.path)}.` : ""}  \nInspect output with ${inlineCode(`pueue log ${task.id}`)}.`,
+      };
+      pi.events.emit("pueue:format-completion", presentation);
+      return presentation;
+    });
+    return {
+      customType: MESSAGE_TYPE,
+      content: `${blocks.map((block) => block.content).join("\n\n")} Process these task results.`,
+      display: true,
+      details: { queue: runtime!.directory, keys: tasks.map(taskKey), summary: blocks.map((block) => block.summary).join("\n\n") },
+    };
   }
 
   function cleanup(): void {
@@ -122,58 +105,54 @@ export default function (pi: ExtensionAPI) {
     context?.ui.setStatus(STATUS_KEY, undefined);
     context?.ui.setStatus("pueue-notify", undefined);
     context = undefined;
-    inactivity.reset();
+    included.clear();
+    ready = false;
   }
 
   function inactivityMessage(tasks: Task[]) {
-    const overdue = inactivity.check(tasks, inactivityMs);
+    const overdue = runtime!.inactivity.check(tasks, runtime!.inactivityMs);
     if (!overdue.length) return undefined;
     const summary = overdue.map(({ task, idleMs }) =>
       `Task ${task.id}${task.label ? ` ${JSON.stringify(task.label)}` : ""} (${task.group}): no new output observed for ${(idleMs / 60_000).toFixed(1)} minutes.  \n${inlineCode(task.original_command ?? task.command)}  \nInspect ${inlineCode(`pueue log --lines 30 ${task.id}`)}.`,
     ).join("\n\n");
     return {
       customType: "pueue-inactivity",
-      content: `${summary}\n\nThese running tasks exceeded the ${(inactivityMs / 60_000).toFixed(1)} minute inactivity threshold. Inspect their logs and process state to determine whether they have stalled. Silence alone is not failure; do not cancel or restart solely because of this reminder. Continue the original task.`,
+      content: `${summary}\n\nThese running tasks exceeded the ${(runtime!.inactivityMs / 60_000).toFixed(1)} minute inactivity threshold. Inspect their logs and process state to determine whether they have stalled. Silence alone is not failure; do not cancel or restart solely because of this reminder.`,
       display: true,
       details: { taskIds: overdue.map(({ task }) => task.id), summary },
     };
   }
 
   async function collect(): Promise<{ tasks: Task[]; fresh: Task[] }> {
-    // Snapshot filenames before querying. A hook arriving during the query
-    // remains in the inbox for the next scan.
+    const inbox = join(runtime!.directory, "completions");
     const events = readdirSync(inbox).filter((name) => name.endsWith(".json"));
-    const tasks = await queryTasks();
+    const tasks = await queryTasks(runtime!);
     if (context?.mode === "tui") context.ui.setStatus(STATUS_KEY, runningStatus(tasks));
     const fresh = tasks.filter((task) => {
       const key = taskKey(task);
-      return key && !processed.has(key) && !queued.has(key);
+      return key && !runtime!.processed.has(key) && !runtime!.queued.has(key);
     });
-    for (const name of events) unlinkSync(join(inbox, name));
+    for (const name of events) {
+      try { unlinkSync(join(inbox, name)); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    }
     return { tasks, fresh };
   }
 
   function enqueue(tasks: Task[]): void {
-    readyToExit = false;
-    for (const task of tasks) queued.add(taskKey(task)!);
-  }
-
-  function exitChild(ctx: ExtensionContext): void {
-    pi.appendEntry("pueue-subagent-exit", { success: !failure, error: failure });
-    cleanup();
-    ctx.shutdown();
+    ready = false;
+    for (const task of tasks) runtime!.queued.add(taskKey(task)!);
   }
 
   function warn(ctx: ExtensionContext, error: unknown): void {
-    ctx.ui.setStatus("pueue-notify", "pueue: notification check failed");
-    if (child) {
-      failure = `Cannot check Pueue completions: ${String(error)}`;
-      if (ctx.isIdle()) exitChild(ctx);
-    }
+    failure = `Cannot check Pueue completions; restart Pi. ${String(error)}`;
+    ready = false;
+    ctx.ui.setStatus("pueue-notify", "pueue: unavailable; restart Pi");
+    publishState();
   }
 
   function schedule(): void {
-    if (!context || debounce) return;
+    if (!context || debounce || failure) return;
     const current = generation;
     debounce = setTimeout(() => {
       debounce = undefined;
@@ -182,8 +161,7 @@ export default function (pi: ExtensionAPI) {
         if (!ctx || current !== generation) return;
         try {
           const { tasks, fresh } = await collect();
-          if (current !== generation || paused) return;
-          ctx.ui.setStatus("pueue-notify", undefined);
+          if (current !== generation || runtime!.paused) return;
           if (fresh.length) {
             enqueue(fresh);
             pi.sendMessage(completionMessage(fresh), { triggerTurn: true, deliverAs: "steer" });
@@ -198,47 +176,62 @@ export default function (pi: ExtensionAPI) {
     debounce.unref?.();
   }
 
-  pi.on("session_start", (_event, ctx) => {
+  pi.on("session_start", async (_event, ctx) => {
     cleanup();
-    // Print/JSON are single-shot. They can reconcile at the run boundary, but
-    // cannot receive asynchronous notifications after the invocation exits.
     if (ctx.mode !== "tui" && ctx.mode !== "rpc") return;
     context = ctx;
-    processed = new Set<string>();
-    queued = new Set<string>();
-    included = new Set<string>();
-    paused = false;
     failure = undefined;
-    readyToExit = false;
-    inactivityMs = DEFAULT_INACTIVITY_MS;
-    for (const entry of ctx.sessionManager.getBranch()) {
-      if (entry.type === "custom" && entry.customType === INACTIVITY_SETTING) {
-        inactivityMs = (entry.data as { timeoutMs: number }).timeoutMs;
+    try {
+      runtime = getRuntime();
+      runtime.queued.clear(); // Unprocessed deliveries from an old binding may need redelivery.
+      await startDaemon(runtime);
+      if (runtime.error) throw new Error(runtime.error);
+      watcher = watch(join(runtime.directory, "completions"), schedule);
+      watcher.on("error", (error) => warn(ctx, error));
+      timer = setInterval(schedule, RECONCILE_MS);
+      timer.unref?.();
+      schedule();
+    } catch (error) {
+      failure = runtime?.error ?? String(error);
+      if (!runtime?.notified) {
+        ctx.ui.notify(failure, "warning");
+        if (runtime) runtime.notified = true;
       }
-      if (entry.type === "custom" && entry.customType === PROCESSED_TYPE) {
-        for (const key of (entry.data as { keys: string[] }).keys) processed.add(key);
-      }
+      publishState();
     }
-    mkdirSync(inbox, { recursive: true, mode: 0o700 });
-    watcher = watch(inbox, schedule);
-    watcher.on("error", (error) => warn(ctx, error));
-    timer = setInterval(schedule, RECONCILE_MS);
-    timer.unref?.();
+  });
+
+  pi.on("session_tree", () => {
+    // Navigation can hide a delivered-but-unprocessed notification. Reconcile
+    // it again on the active branch; completed attempts remain deduplicated.
+    runtime?.queued.clear();
+    included.clear();
+    ready = false;
     schedule();
   });
 
-  pi.on("before_agent_start", () => {
-    // A new explicit user prompt may resume an aborted interactive agent.
-    paused = false;
-    readyToExit = false;
-    failure = undefined;
+  pi.on("before_agent_start", (event) => {
+    ready = false;
+    included.clear();
+    if (runtime && event.messageType === "user" && !runtime.error) {
+      runtime.paused = false;
+      failure = undefined;
+    }
+    publishState();
+    const status = !context ? "Pueue is unavailable in single-shot mode; do not use it."
+      : failure || runtime?.error ? `${failure ?? runtime?.error} Do not use Pueue.`
+      : `Current Pueue queue: ${runtime!.directory}. It belongs to this Pi process, not the conversation. Historical task IDs may belong to an older queue.`;
+    return { systemPrompt: `${event.systemPrompt}\n\n${status}` };
   });
 
   pi.on("context", (event) => {
+    if (!runtime) return;
     for (const message of event.messages) {
       if (message.role === "custom" && message.customType === MESSAGE_TYPE) {
-        for (const key of (message.details as { keys: string[] }).keys) {
-          if (!processed.has(key)) included.add(key);
+        const details = message.details as { queue?: string; keys: string[] };
+        if (details.queue !== runtime.directory) continue;
+        for (const key of details.keys) {
+          if (!runtime.processed.has(key)) included.add(key);
         }
       }
     }
@@ -247,79 +240,81 @@ export default function (pi: ExtensionAPI) {
   pi.on("agent_before_settle", async (event, ctx) => {
     if (!context) return;
     return exclusive(async () => {
-      readyToExit = false;
+      ready = false;
       if (event.outcome !== "completed") {
-        paused = true;
-        failure = `Agent run ${event.outcome}; background tasks were not all processed.`;
+        runtime!.paused = true;
+        failure = `Agent run ${event.outcome}; background results were not all processed.`;
         return;
       }
-      if (included.size) {
-        pi.appendEntry(PROCESSED_TYPE, { keys: [...included] });
-        for (const key of included) {
-          processed.add(key);
-          queued.delete(key);
-        }
-        included.clear();
+      if (failure || runtime!.error) return;
+      for (const key of included) {
+        runtime!.processed.add(key);
+        runtime!.queued.delete(key);
       }
-      if (paused) return;
+      included.clear();
+      if (runtime!.paused) return;
       try {
         const { tasks, fresh } = await collect();
-        ctx.ui.setStatus("pueue-notify", undefined);
-        failure = undefined;
         if (fresh.length) {
           enqueue(fresh);
           return { entries: [{ type: "custom_message" as const, ...completionMessage(fresh) }], continue: true };
         }
         const reminder = inactivityMessage(tasks);
-        if (reminder) {
-          return { entries: [{ type: "custom_message" as const, ...reminder }], continue: true };
-        }
-        readyToExit = tasks.every((task) => {
+        if (reminder) return { entries: [{ type: "custom_message" as const, ...reminder }], continue: true };
+        ready = tasks.every((task) => {
           const key = taskKey(task);
-          return key !== undefined && processed.has(key);
-        }) && queued.size === 0;
-      } catch (error) {
-        warn(ctx, error);
-      }
+          return key !== undefined && runtime!.processed.has(key);
+        }) && runtime!.queued.size === 0 && !event.continue && !ctx.hasPendingMessages();
+      } catch (error) { warn(ctx, error); }
     });
   });
 
-  pi.on("agent_settled", (_event, ctx) => {
-    if (child && context && (readyToExit || failure)) {
-      // The persistent runner waits for process exit, not intermediate settles.
-      exitChild(ctx);
+  pi.on("agent_settled", (event) => {
+    if (!context) return;
+    if (event.aborted) {
+      runtime!.paused = true;
+      ready = false;
+      failure = "Agent run aborted; background results were not all processed.";
     }
+    publishState();
   });
 
   pi.registerCommand("pueue-notifications", {
     description: "Resume automatic Pueue completion turns, or pause them with 'off'",
     handler: async (args, ctx) => {
-      paused = args.trim() === "off";
-      ctx.ui.notify(`Pueue completion notifications ${paused ? "paused" : "enabled"}.`, "info");
-      if (!paused) schedule();
+      if (!runtime || runtime.error) { ctx.ui.notify(runtime?.error ?? "Pueue is unavailable in this Pi mode.", "warning"); return; }
+      runtime.paused = args.trim() === "off";
+      if (!runtime.paused) {
+        failure = undefined;
+        runtime.queued.clear();
+      }
+      ctx.ui.notify(`Pueue completion notifications ${runtime.paused ? "paused" : "enabled"}.`, "info");
+      if (!runtime.paused) schedule();
     },
   });
 
   pi.registerCommand("pueue-inactivity", {
     description: "Set the no-output reminder timeout (default 30m): <duration s/m/h> | off; no argument shows the setting",
     handler: async (args, ctx) => {
+      if (!runtime || failure) { ctx.ui.notify(failure ?? "Pueue is unavailable in this Pi mode.", "warning"); return; }
       const value = args.trim().toLowerCase();
       if (value) {
         const timeout = parseInactivityTimeout(value);
-        if (timeout === undefined) {
-          ctx.ui.notify("Usage: /pueue-inactivity <30s|30m|2h|off>", "warning");
-          return;
-        }
-        inactivityMs = timeout;
-        inactivity.reset();
-        pi.appendEntry(INACTIVITY_SETTING, { timeoutMs: timeout });
+        if (timeout === undefined) { ctx.ui.notify("Usage: /pueue-inactivity <30s|30m|2h|off>", "warning"); return; }
+        runtime.inactivityMs = timeout;
+        runtime.inactivity.reset();
         schedule();
       }
-      ctx.ui.notify(inactivityMs
-        ? `Pueue inactivity reminders: ${inactivityMs / 60_000} minutes without output (checked every 10s).`
+      ctx.ui.notify(runtime.inactivityMs
+        ? `Pueue inactivity reminders: ${runtime.inactivityMs / 60_000} minutes without output (checked every 10s).`
         : "Pueue inactivity reminders disabled.", "info");
     },
   });
 
-  pi.on("session_shutdown", cleanup);
+  pi.on("session_shutdown", async (event) => {
+    cleanup();
+    await serial;
+    runtime?.queued.clear();
+    if (event.reason === "quit" && runtime) await stopDaemon(runtime);
+  });
 }

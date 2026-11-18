@@ -1,8 +1,8 @@
 # Pi customizations
 
 Personal [Pi](https://pi.dev) extensions, skills, shared instructions, and external
-package declarations. Resources are a conventional Pi package: `extensions/`
-and complete `skills/` directories are discovered without generated manifests.
+package declarations. `package.json` declares the extensions and skill roots,
+including the independently publishable `extensions/pueue-tool/` package.
 Nix is optional for using the resources; the starter flake is only a dev shell.
 
 Skills are grouped by provenance:
@@ -10,10 +10,11 @@ Skills are grouped by provenance:
 - `skills/personal/` — personal skills maintained here.
 - `skills/anthropic/` — vendored Anthropic skills tracked in `upstream.json`.
 
-Pi discovers both groups recursively; skill names and `/skill:<name>` commands
-are unchanged. `pi-update` copies the entire `skills/` tree, so no updater change
-is needed. Path-based package filters referencing the old `skills/<name>/` paths
-must be updated to include the group.
+Pi discovers both groups recursively. The Pueue skill lives with its standalone
+package at `extensions/pueue-tool/skills/pueue/`. Skill names and `/skill:<name>`
+commands are unchanged. `pi-update` copies both complete trees. Path-based
+package filters referencing the old `skills/<name>/` paths must be updated to
+include the group.
 
 ## Personal update workflow (NixOS)
 
@@ -75,13 +76,16 @@ Native Git updates use `pi update --extensions`.
 
 Portable resources work without Nix. Nix Bash/Search register only when their
 executables exist; `/open-file` requires the separate host chooser;
-`/subagents` requires the host launcher and profile environment. Pueue delivery
-requires the private daemon/notification environment. Codex Auto activates only
-in the wrapper's `auto` profile. Host sandbox, Pueue, clipboard, portal, MCP,
-subagent launcher/runner, and separate-account wrappers remain Nix-managed;
-installing this package does not provide them or guarantee sandboxing.
+`/subagents` requires the host launcher and profile environment. Pueue requires
+`pueue` and `pueued` on PATH; its standalone extension now initializes its own
+private daemon/config/callback on Linux and macOS. Codex Auto activates only in
+the wrapper's `auto` profile. Host sandbox, clipboard, portal, MCP, subagent
+launcher/runner, and separate-account wrappers remain Nix-managed; installing
+this package does not provide them or guarantee sandboxing.
 See [Codex Auto](extensions/codex-auto/README.md) for account routing and
-[Pueue](extensions/pueue-tool/DESIGN.md) for completion delivery/log browsing.
+[Pueue](extensions/pueue-tool/README.md) for independent installation and
+completion delivery/log browsing. The private
+[subagent adapter](extensions/subagent-pueue/README.md) is not part of that package.
 
 The TODO directory/status and skill initializer helpers use dependency-free
 TypeScript, directly runnable with `node scripts/<helper>.ts`. The skill YAML
@@ -97,7 +101,7 @@ other managed Pi settings requires an explicit updater change rather than
 overwriting users' preferences. Project-specific NixOS skills remain in nixos-config's `.pi/skills`.
 
 ```sh
-node --test tests/*.test.mjs
+npm test
 ```
 
 `references/SUBAGENTS.md` documents the separate host integration; the authoritative

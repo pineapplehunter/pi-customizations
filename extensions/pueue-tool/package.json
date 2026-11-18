@@ -1,0 +1,27 @@
+{
+  "name": "pi-pueue",
+  "version": "1.0.0",
+  "description": "Private per-instance Pueue queues, automatic completion turns, and log browsing for Pi",
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "author": "Shogo Takata",
+  "keywords": ["pi-package", "pueue"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pineapplehunter/pi-customizations.git",
+    "directory": "extensions/pueue-tool"
+  },
+  "engines": { "node": ">=22.18.0" },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "files": ["*.ts", "complete.mjs", "skills/", "README.md"],
+  "pi": {
+    "extensions": ["./index.ts"],
+    "skills": ["./skills"]
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}

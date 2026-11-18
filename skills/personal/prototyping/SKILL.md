@@ -28,6 +28,8 @@ Do not add by default:
 
 Follow KISS: keep it simple.
 
+Feel free to test complex tasks to verify behaviour, but keep it in /tmp and only leave the readable dead simple tests in the repo.
+
 Before finishing, remove code or structure that is not necessary to demonstrate the requested behavior.
 
 These concerns can be added later when the prototype becomes production code.

@@ -1,0 +1,25 @@
+{
+  "anthropic-skills": {
+    "repository": "https://github.com/anthropics/skills",
+    "revision": "1780c5e5a552fd4d1c9d6a7b0cab26b0c2bef064",
+    "sourceDirectory": "skills",
+    "destinationDirectory": "skills",
+    "license": "Apache-2.0; bundled fonts retain SIL-OFL-1.1 notices",
+    "skills": [
+      "algorithmic-art",
+      "canvas-design",
+      "discernment-nudge",
+      "docx",
+      "frontend-design",
+      "internal-comms",
+      "pdf",
+      "pptx",
+      "theme-factory",
+      "webapp-testing",
+      "xlsx"
+    ],
+    "excluded": {
+      "doc-coauthoring": "No unambiguous skill-specific permissive license at this revision"
+    }
+  }
+}

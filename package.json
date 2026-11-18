@@ -1,0 +1,19 @@
+{
+  "name": "pi-customizations",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal Pi extensions and skills, with optional NixOS integrations",
+  "license": "Apache-2.0",
+  "keywords": ["pi-package"],
+  "repository": "github:pineapplehunter/pi-customizations",
+  "engines": { "node": ">=22.18.0" },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}

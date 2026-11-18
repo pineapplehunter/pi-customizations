@@ -7,11 +7,8 @@ in [Shogo Takata's nixos-config](https://github.com/pineapplehunter/nixos-config
 under `home/pi-coding-agent/pineapplehunter`, at revision
 `927c2b6d3e71f5928804b2a9da57abaec5941038`.
 
-Shogo Takata authorized releasing his contributions here under Apache-2.0.
-This does not change the license of the original nixos-config repository or
-third-party work. The migration changes resource paths, makes host-specific
-integrations optional, and ports selected dependency-free skill helpers to
-TypeScript. Subsequent local changes are recorded in Git.
+Personal contributions are licensed under GPL-3.0-only. Third-party material
+retains its original licenses and notices, as described below.
 
 ## Anthropic skills
 

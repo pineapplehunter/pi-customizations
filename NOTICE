@@ -1,7 +1,8 @@
 Pi customizations
 Copyright Shogo Takata
 
-Personal contributions are licensed under the Apache License, Version 2.0.
+Personal contributions are licensed under the GNU General Public License,
+Version 3 only (SPDX: GPL-3.0-only).
 Third-party files retain their original licenses and notices.
 
 Includes skills from Anthropic, PBC and its contributors (Apache-2.0),

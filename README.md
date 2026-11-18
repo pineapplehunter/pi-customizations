@@ -106,7 +106,7 @@ also describes the host-side requirements.
 
 ## Licenses and upstream refreshes
 
-Personal contributions are Apache-2.0. See `CREDITS.md`, `NOTICE`, `upstream.json`,
+Personal contributions are GPL-3.0-only. See `CREDITS.md`, `NOTICE`, `upstream.json`,
 and the original licenses kept with vendored skills and font assets.
 `doc-coauthoring` is intentionally omitted pending clear license permission.
 

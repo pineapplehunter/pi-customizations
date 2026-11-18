@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Personal Pi extensions and skills, with optional NixOS integrations",
-  "license": "Apache-2.0",
+  "license": "GPL-3.0-only",
   "keywords": ["pi-package"],
   "repository": "github:pineapplehunter/pi-customizations",
   "engines": { "node": ">=22.18.0" },

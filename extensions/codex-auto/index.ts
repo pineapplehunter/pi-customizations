@@ -169,30 +169,64 @@ export default async function (pi: ExtensionAPI): Promise<void> {
     session = undefined;
   });
 
+  const usageSummary = (ctx: ExtensionContext) => {
+    const lines = ACCOUNTS.map((account) => {
+      const state = accounts.states[account];
+      const base = formatAccount(account, state, ctx.model?.provider === PROVIDER ? ctx.model : undefined);
+      const resets = state.report?.groups[0]?.windows.filter((window) => window.resetAt)
+        .map((window) => `${window.minutes === 300 ? "5h" : window.minutes === 10080 ? "wk" : `${window.minutes}m`} resets ${new Date(window.resetAt!).toLocaleString()}`) ?? [];
+      return `${base}${state.error ? ` — ${state.error}` : ""}${resets.length ? ` — ${resets.join(", ")}` : ""}`;
+    });
+    lines.push(`Last used: ${accounts.active ?? "none yet"} — ${accounts.reason}`);
+    lines.push(`Personal reserve: ${accounts.reserve}% (default ${DEFAULT_RESERVE}%)`);
+    return lines.join("\n");
+  };
+
+  const setReserve = async (input: string) => {
+    const match = /^(\d+(?:\.\d+)?)%?$/.exec(input.trim());
+    if (!match) throw new Error("Enter a reserve between 0 and 100%.");
+    const reserve = Number(match[1]);
+    await saveReserve(accounts.settingsPath, reserve);
+    accounts.reserve = reserve;
+  };
+
   pi.registerCommand("codex-auto-usage", {
-    description: "Show Codex Auto accounts or set reserve: /codex-auto-usage reserve <0-100>",
+    description: "Show Codex Auto usage and edit the personal reserve",
     handler: async (args, ctx) => {
       const input = args.trim();
-      const match = /^reserve\s+(\d+(?:\.\d+)?)%?$/i.exec(input);
+      const match = /^reserve\s+(.+)$/i.exec(input);
+      const refresh = () => accounts.refresh(AbortSignal.timeout(15_000));
       try {
         if (match) {
-          await saveReserve(accounts.settingsPath, Number(match[1]));
-          accounts.reserve = await readReserve(accounts.settingsPath);
+          await setReserve(match[1]);
         } else if (input && input !== "refresh") {
           ctx.ui.notify("Usage: /codex-auto-usage [refresh | reserve <0-100>]", "warning");
           return;
         }
-        const signal = AbortSignal.timeout(15_000);
-        await accounts.refresh(signal);
-        const lines = ACCOUNTS.map((account) => {
-          const state = accounts.states[account];
-          const base = formatAccount(account, state, ctx.model?.provider === PROVIDER ? ctx.model : undefined);
-          const resets = state.report?.groups[0]?.windows.filter((window) => window.resetAt)
-            .map((window) => `${window.minutes === 300 ? "5h" : window.minutes === 10080 ? "wk" : `${window.minutes}m`} resets ${new Date(window.resetAt!).toLocaleString()}`) ?? [];
-          return `${base}${state.error ? ` — ${state.error}` : ""}${resets.length ? ` — ${resets.join(", ")}` : ""}`;
-        });
-        ctx.ui.notify(`${lines.join("\n")}\nActive: ${accounts.active ?? "none yet"} — ${accounts.reason}\nPersonal reserve: ${accounts.reserve}% (default ${DEFAULT_RESERVE}%)`, "info");
-        updateStatus();
+        await refresh();
+        if (input || !ctx.hasUI) {
+          ctx.ui.notify(usageSummary(ctx), "info");
+          return;
+        }
+
+        const edit = "Set personal reserve";
+        const reload = "Refresh usage";
+        while (true) {
+          const action = await ctx.ui.select(`Codex Auto usage\n\n${usageSummary(ctx)}`, [edit, reload, "Close"]);
+          if (action === edit) {
+            const value = await ctx.ui.input("Personal 5h quota to keep in reserve (0–100%)", String(accounts.reserve));
+            if (value === undefined) continue;
+            try {
+              await setReserve(value);
+            } catch (error) {
+              ctx.ui.notify(error instanceof Error ? error.message : "Could not save personal reserve", "error");
+            }
+          } else if (action === reload) {
+            await refresh();
+          } else {
+            return;
+          }
+        }
       } catch (error) {
         ctx.ui.notify(error instanceof Error ? error.message : "Codex Auto usage unavailable", "error");
       }

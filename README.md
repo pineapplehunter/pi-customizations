@@ -74,7 +74,7 @@ Native Git updates use `pi update --extensions`.
 
 Portable resources work without Nix. Nix Bash/Search register only when their
 executables exist; `/open-file` requires the separate host chooser;
-`/subagents` requires the host launcher and profile environment. Pueue requires
+`/subagents` requires the host launcher and `PI_CODING_AGENT_DIR`. Pueue requires
 `pueue` and `pueued` on PATH; its standalone extension now initializes its own
 private daemon/config/callback on Linux and macOS. The `codex-host` provider
 requires the Nix-managed host broker. Use `/codex-route` to select Personal,

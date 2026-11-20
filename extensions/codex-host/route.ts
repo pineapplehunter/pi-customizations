@@ -12,10 +12,6 @@ export const isRoute = (value: unknown): value is Route => typeof value === "str
 export function sessionRoute(ctx: ExtensionContext): Route | undefined {
   for (const entry of [...ctx.sessionManager.getBranch()].reverse()) {
     if (entry.type === "custom" && entry.customType === "codex-route" && isRoute(entry.data)) return entry.data;
-    if (entry.type === "model_change" && entry.provider.startsWith(`${ID}-`)) {
-      const route = entry.provider.slice(ID.length + 1);
-      if (isRoute(route)) return route;
-    }
   }
 }
 

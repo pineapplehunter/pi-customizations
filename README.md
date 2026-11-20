@@ -46,9 +46,7 @@ next installation; this is not automatic rollback.
 The updater merges package entries and copies `AGENTS.md`. It preserves other
 settings and unrelated packages. Manual filters/version overrides are preserved;
 entries it owns are tracked in `~/.pi/customizations/managed-packages.json`.
-Existing `pi`, `pi-work`, and `pi-auto` profiles share the snapshot; linked settings
-are updated once, independent settings individually. Existing profile-specific
-instructions remain untouched. Authentication, sessions, model preferences,
+The updater targets `~/.pi/agent`. Authentication, sessions, model preferences,
 keybindings, trust, and host MCP settings are not copied or managed here.
 
 Invalid sources or clone failures leave the installed snapshot alone. An external
@@ -78,11 +76,11 @@ Portable resources work without Nix. Nix Bash/Search register only when their
 executables exist; `/open-file` requires the separate host chooser;
 `/subagents` requires the host launcher and profile environment. Pueue requires
 `pueue` and `pueued` on PATH; its standalone extension now initializes its own
-private daemon/config/callback on Linux and macOS. Codex Auto activates only in
-the wrapper's `auto` profile. Host sandbox, clipboard, portal, MCP, subagent
-launcher/runner, and separate-account wrappers remain Nix-managed; installing
-this package does not provide them or guarantee sandboxing.
-See [Codex Auto](extensions/codex-auto/README.md) for account routing and
+private daemon/config/callback on Linux and macOS. The `codex-host` provider
+requires the Nix-managed host broker. Use `/codex-route` to select Personal,
+Work, or Auto. Installing this package does not provide the sandbox, brokers,
+or subagent launcher.
+See [brokered web tools](extensions/codex-host/web/README.md) for web setup and
 [Pueue](extensions/pueue-tool/README.md) for independent installation and
 completion delivery/log browsing. The private
 [subagent adapter](extensions/subagent-pueue/README.md) is not part of that package.

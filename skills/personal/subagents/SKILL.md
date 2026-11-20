@@ -62,9 +62,8 @@ than assuming ordinary Pi provides these integrations. The authoritative
   directory or host logins. A fresh child uses Auto if the broker offers it,
   otherwise the available single-account route; it doesn't read the parent's
   saved default or current session route. A resumed child can restore its own
-  saved route. Presets are not rewritten: reselect retired `codex-host-*`
-  presets yourself; pass `--profile` to replace a retired saved selection when
-  resuming. Use the same process for retired `codex-auto` presets.
+  saved route. Presets are not rewritten. Pass `--profile` to resume with a
+  different preset.
 
 ## Examples
 

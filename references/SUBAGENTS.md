@@ -77,9 +77,8 @@ restore the **child's own** route from its native history. Mounting only the
 socket inode means a running worker may lose access if the host replaces the
 socket; resume from a fresh parent sandbox if needed.
 
-No presets are rewritten. Use `/subagents` to replace retired `codex-host-*`
-provider IDs. To resume with a new selection, supply `--profile <preset>`;
-otherwise a retired saved selection fails with a diagnostic.
+No presets are rewritten. To resume with a different model, configure it in
+`/subagents` and supply `--profile <preset>`.
 
 ## SIMA: Single Instruction, Multiple Agents
 
@@ -249,6 +248,4 @@ or existing resumed selections.
 
 The UI lists only models Pi reports available through configured credentials
 in the current parent; quota and service availability are not checked.
-Choosing a preset does not install a provider or supply credentials. If a
-saved selection still uses the retired `codex-auto` provider, set a
-`codex-host/...` preset and use `--profile` to resume with it.
+Choosing a preset does not install a provider or supply credentials.

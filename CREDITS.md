@@ -39,12 +39,23 @@ The extensions use the [Pi coding agent](https://github.com/earendil-works/pi),
 created by Mario Zechner and maintained by its contributors. Pi is installed
 separately and is not vendored here.
 
-`settings.json` declares separately installed third-party packages, credited to
-their respective authors:
+### Patched tools and compatibility references
 
-- `@narumitw/pi-usage`
-- `pi-web-access`
-- `pi-codex-image-gen`
+| Tool | Upstream and baseline | Local code and update guide |
+| --- | --- | --- |
+| Web search, source checks, and page helpers | Nico Bailon's [pi-web-access](https://github.com/nicobailon/pi-web-access), [npm 0.48.0](https://www.npmjs.com/package/pi-web-access/v/0.48.0), MIT | We patch the published Pi extension bundle. See the [patch and upgrade procedure](extensions/codex-host/web/README.md#upgrading-the-upstream-package). |
+| Image generation and editing | Jose Mocito's [pi-codex-image-gen](https://github.com/jvm/pi-mono/tree/main/packages/pi-codex-image-gen), [npm 0.3.2](https://www.npmjs.com/package/pi-codex-image-gen/v/0.3.2), Apache-2.0 | Nix fetches and patches the published package. The [host maintenance guide](https://github.com/pineapplehunter/nixos-config/blob/main/home/pi-coding-agent/UPSTREAM.md#codex-image-generation) describes the pins, patch, and broker code. |
+| Codex `/usage`, reset credits, and Fast capability checks | [@narumitw/pi-usage](https://github.com/narumiruna/pi-extensions/tree/main/packages/pi-usage), [npm 0.69.3](https://www.npmjs.com/package/@narumitw/pi-usage/v/0.69.3), MIT | This package is a compatibility reference, not an installed fork. See [local usage UI](extensions/codex-host/usage.ts) and the [host maintenance guide](https://github.com/pineapplehunter/nixos-config/blob/main/home/pi-coding-agent/UPSTREAM.md#usage-reset-credits-and-fast-mode) for upstream files to compare. |
+
+The host Codex broker and GitHub shim live in
+[`nixos-config/home/pi-coding-agent`](https://github.com/pineapplehunter/nixos-config/tree/main/home/pi-coding-agent).
+They are local integrations, not forks of the Pi SDK or the GitHub CLI.
+
+### Separately installed packages
+
+`settings.json` also declares unmodified third-party packages:
+
+- `pi-web-access` (stock declaration; disabled when using the patched copy)
 - `pi-compact-tools`
 - [monotykamary/pi-double-esc](https://github.com/monotykamary/pi-double-esc)
 - [pineapplehunter/pi-remote-server](https://github.com/pineapplehunter/pi-remote-server)

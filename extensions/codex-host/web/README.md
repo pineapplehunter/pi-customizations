@@ -1,5 +1,9 @@
 # Brokered search for `pi-web-access` 0.48.0
 
+**Upstream:** Nico Bailon's [`nicobailon/pi-web-access`](https://github.com/nicobailon/pi-web-access)
+(MIT). The patch base is the [published npm 0.48.0 tarball](https://registry.npmjs.org/pi-web-access/-/pi-web-access-0.48.0.tgz),
+not a build from upstream `main`. See [Upgrading the upstream package](#upgrading-the-upstream-package).
+
 `web_search` and `source_check` use the host Codex account when the active Pi
 model belongs to `codex-host`. To opt into the broker even with a different
 active model, set `"openaiSearchProviders": ["codex-host"]` in `web-search.json`.
@@ -62,9 +66,27 @@ and normal chat transport rather than the search endpoint.
 
 To roll back, remove the local package entry, restore the npm entry's original
 filters, remove any explicit `codex-host` search provider setting, and restart
-Pi. No account login changes are needed. To upgrade, review and port the diff to
-an exact new release before switching the local path; do not upgrade the
-dedicated install in place. The patch carries upstream's MIT license.
+Pi. No account login changes are needed.
+
+## Upgrading the upstream package
+
+1. Read upstream's [changelog](https://github.com/nicobailon/pi-web-access/blob/main/CHANGELOG.md)
+   and unpack the exact candidate npm release in a temporary directory. Keep an
+   untouched copy of `dist/index.js`; this is the file loaded by Pi, not the
+   standalone MCP bundle.
+2. Port [the current patch](pi-web-access-0.48.0.patch) to a copy of that bundle.
+   Check hosted OpenAI provider selection, the `codex-host:web-search:v1` event
+   bridge, and default summary model selection. Keep independent providers
+   working and do not let a failed broker request fall back to paid OpenAI.
+3. Generate a unified diff with `a/dist/index.js` and `b/dist/index.js` headers.
+   Name it for the new version and update `version`, `original`, and `patched`
+   in [`apply.mjs`](apply.mjs), using SHA-256 hashes of the untouched and patched
+   bundles. Update the activation example and [credits](../../../CREDITS.md).
+   Keep the upstream [MIT license](LICENSE).
+4. Apply the regenerated patch to a fresh install in a new versioned prefix.
+   Run the tests below, then switch the configured package path. Do not upgrade
+   the active prefix in place. When the release changes GitHub fetches, also
+   check the [host shim's upstream contract](https://github.com/pineapplehunter/nixos-config/blob/main/home/pi-coding-agent/UPSTREAM.md#github-fetch-shim).
 
 ## Offline coverage
 

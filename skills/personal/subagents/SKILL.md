@@ -33,10 +33,15 @@ than assuming ordinary Pi provides these integrations. The authoritative
   `name`, `session_id`, `task_id`, `state_directory`, `response_path`, `stdout_path`.
   Name is a label. `--run` is internal; no launcher status/cleanup commands or
   state-root overrides exist. State is `/tmp/pi-subagent-state/SESSION_ID`.
-- Optional `--no-inherit-resources` disables extension/skill discovery except
-  the installed snapshot's Pueue core and private subagent adapter.
-  Pi built-ins/tools/auth/settings remain;
-  prompts/themes and package resolution are unchanged. Repeat it on resume;
+- **Do not use `--no-inherit-resources` by default.** Keep normal discovery for
+  implementation, debugging, and project reviews. Use the flag only when an
+  inherited tool, extension, or skill would interfere with the objective—for
+  example, when testing Pi's own tools in isolation or reviewing a skill without
+  first loading it. The flag disables extension/skill discovery. The
+  launcher explicitly loads the installed Pueue core and subagent adapter, and
+  the host Codex provider for `codex-host/...` presets. Pi built-ins, tools,
+  auth, settings, prompts, themes, and package resolution are unchanged.
+  Repeat it on resume;
   existing history is not erased. Use fresh sessions for clean-reference tests.
 - SIMA: one brief with common requirements/named jobs, independent copies/sessions,
   each assigned one job via `--context 'Execute only JOB.'`/`-c` (literal system
@@ -50,8 +55,17 @@ than assuming ordinary Pi provides these integrations. The authoritative
   Model/thinking can only be set in presets; there are no per-field CLI flags.
   Parent model/thinking environment is never used. Launch JSON shows resolved
   values. Resume preserves the previous selection unless `--profile` is supplied.
-  `codex-auto` presets require `pi-auto` and normal extension loading; do not
-  combine them with `--no-inherit-resources`.
+  For host-backed Codex, start the normal broker-enabled **plain `pi`** and
+  explicitly select **Codex (host)** (`codex-host/<model>`) in `/subagents`.
+  The launcher checks the parent's wrapper-provided Unix socket when queuing
+  and again when starting the worker. Only the socket is mounted, not its
+  directory or host logins. A fresh child uses Auto if the broker offers it,
+  otherwise the available single-account route; it doesn't read the parent's
+  saved default or current session route. A resumed child can restore its own
+  saved route. Presets are not rewritten: reselect retired `codex-host-*`
+  presets yourself; pass `--profile` to replace a retired saved selection when
+  resuming. Legacy `codex-auto` presets still require `pi-auto` and normal
+  extension loading.
 
 ## Examples
 
@@ -74,8 +88,7 @@ Trace findings; report file/line, impact, triggering input, checked cases, and
 untested assumptions. Verify project files are unchanged.
 TASK
 printf 'Files: %s\n' "$r"
-pi-subagent launch-review "$r/work" "$r/task.md" \
-  --no-inherit-resources | tee "$r/launch.json"
+pi-subagent launch-review "$r/work" "$r/task.md" | tee "$r/launch.json"
 ```
 
 ### SIMA: independent sandbox and completion reviews

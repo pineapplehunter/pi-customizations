@@ -1,0 +1,112 @@
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -17050,7 +17050,10 @@
+     if (spec) specs.push(spec);
+     else failures.push({ model: normalizedOverride, reason: "no active Pi session model", message: `Summary model not found: ${normalizedOverride} (no active Pi session model)` });
+   }
+-  if (preferredFallback) specs.push(...PREFERRED_SUMMARY_MODELS);
++  if (preferredFallback) {
++    if (ctx.model?.provider === "codex-host") specs.push({ provider: ctx.model.provider, id: ctx.model.id });
++    else specs.push(...PREFERRED_SUMMARY_MODELS);
++  }
+   const candidates = [];
+   const seen = /* @__PURE__ */ new Set();
+   for (const spec of specs) {
+@@ -17917,12 +17920,36 @@
+   }
+   throw new Error("Current model is not backed by an official OpenAI or Azure Responses endpoint");
+ }
++// Optional Pi-only transport. The MCP bundle and independent providers are unchanged.
++var hostSearchEvents;
++function wantsHostCodexSearch(ctx) {
++  if (!ctx) return false;
++  if (ctx.model?.provider === "codex-host") return true;
++  const providers = loadConfig7().openaiSearchProviders;
++  return Array.isArray(providers) && providers.includes("codex-host");
++}
++async function searchWithHostCodex(query, options, ctx, current = false) {
++  options.signal?.throwIfAborted();
++  const domains = normalizeDomainFilters2(options.domainFilter);
++  const model = current && ctx.model?.provider === "codex-host" ? ctx.model.id
++    : options.model ?? resolveConfiguredSearchModel(loadConfig7().openaiSearchModel);
++  let result;
++  hostSearchEvents?.emit("codex-host:web-search:v1", {
++    query, model, signal: options.signal, numResults: options.numResults, recencyFilter: options.recencyFilter,
++    domainFilter: domains ? [...(domains.allowedDomains ?? []), ...(domains.blockedDomains ?? []).map((domain) => `-${domain}`)].slice(0, 100) : void 0,
++    reply: (response) => { result = response; }
++  });
++  if (!result) throw new Error("Host Codex search unavailable: enable the codex-host extension and broker socket.");
++  return result;
++}
+ function isOpenAISubscriptionModelSelected(ctx) {
++  if (wantsHostCodexSearch(ctx)) return true;
+   const model = ctx?.model;
+   if (model?.provider === "openai-codex") return true;
+   return model?.provider === "openai" && ctx?.modelRegistry?.isUsingOAuth?.(model) === true;
+ }
+ function isCurrentModelHostedSearchEligible(ctx) {
++  if (wantsHostCodexSearch(ctx)) return true;
+   const model = ctx?.model;
+   if (!model) return false;
+   try {
+@@ -18151,6 +18178,8 @@
+   return apiKey ? { provider: "openai", apiKey, model: modelOverride ?? "gpt-6-luna", headers: {}, responsesUrl } : void 0;
+ }
+ async function isOpenAISearchAvailable(ctx) {
++  // Keep the requested transport selected even if the broker is temporarily down.
++  if (wantsHostCodexSearch(ctx)) return true;
+   const config = loadConfig7();
+   const responsesUrl = resolveConfiguredResponsesUrl(config.openaiResponsesUrl);
+   const useProviderBaseUrl = resolveUseProviderBaseUrl(config);
+@@ -18538,6 +18567,7 @@
+   }
+ }
+ async function searchWithOpenAI(query, options = {}, ctx) {
++  if (wantsHostCodexSearch(ctx)) return searchWithHostCodex(query, options, ctx);
+   const auth = await resolveOpenAIAuth(ctx, options.signal, options.model);
+   if (!auth) {
+     throw new Error(
+@@ -18551,6 +18581,7 @@
+ }
+ async function searchWithCurrentModelOpenAI(query, options = {}, ctx) {
+   if (!ctx) throw new Error("OpenAI current-model search requires an extension context");
++  if (wantsHostCodexSearch(ctx)) return searchWithHostCodex(query, options, ctx, true);
+   const auth = await resolveCurrentModelAuth(ctx, options.signal);
+   return runOpenAISearch(query, options, auth, ctx);
+ }
+@@ -25156,6 +25187,9 @@
+   if (provider !== "auto") return searchWithResolvedProvider(provider, query, options);
+   if (!config.searchProviderConfigured && config.searchRouting) {
+     return searchWithConfiguredRouting(query, options, config.searchRouting);
++  }
++  if (wantsHostCodexSearch(options.extensionContext) && (config.allowedProviders ?? RESOLVED_SEARCH_PROVIDERS).includes("openai")) {
++    return searchWithResolvedProvider("openai", query, options);
+   }
+   const fallbackErrors = [];
+   let firstEmpty;
+@@ -28401,6 +28435,7 @@
+       }
+       return routing.providers.find((candidate) => candidate !== "openai" || routing.useCurrentModel !== true || isCurrentModelHostedSearchEligible(ctx)) ?? routing.providers[0];
+     }
++    if (available.openai && wantsHostCodexSearch(ctx)) return "openai";
+     return firstAvailableProvider(available, preferOpenAI, "exa");
+   }
+   if (provider === "all") {
+@@ -28628,6 +28663,7 @@
+   }
+ }
+ function index_default(pi) {
++  hostSearchEvents = pi.events;
+   const initConfig = loadConfigForExtensionInit();
+   const fetchModeConfig = resolveFetchModeConfig(initConfig);
+   const toolActivation = initConfig.toolActivation ?? "auto";
+@@ -28875,6 +28911,9 @@
+       if (!spec) return { summaryModels: [], defaultSummaryModel: configuredSummaryModel, preferredFallback: false };
+       defaultSummaryModel = `${spec.provider}/${spec.id}${spec.thinkingLevel ? `:${spec.thinkingLevel}` : ""}`;
+       addModel(defaultSummaryModel);
++    } else if (summaryContext.model?.provider === "codex-host") {
++      const value = `${summaryContext.model.provider}/${summaryContext.model.id}`;
++      if (availableValues.has(value)) defaultSummaryModel = value;
+     } else {
+       for (const preferred of preferredDefaults) {
+         const model = findModelWithProviderRouting(summaryContext.modelRegistry, preferred.provider, preferred.id);

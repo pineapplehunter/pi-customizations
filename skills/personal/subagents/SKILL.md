@@ -49,7 +49,7 @@ than assuming ordinary Pi provides these integrations. The authoritative
   Unrelated contexts may use separate briefs. Dependencies need waves: copy
   accepted earlier results into later workspaces.
 - Configure named model/thinking presets with `/subagents` in the parent UI.
-  Presets are scoped to `$PI_CODING_AGENT_DIR/subagents.json` for each wrapper.
+  Presets are stored in `$PI_CODING_AGENT_DIR/subagents.json`.
   `PI_CODING_AGENT_DIR` is required; there is no shared configuration fallback.
   Launch with `--profile light` or `--profile deep`, or omit it for the default.
   Model/thinking can only be set in presets; there are no per-field CLI flags.
@@ -64,8 +64,7 @@ than assuming ordinary Pi provides these integrations. The authoritative
   saved default or current session route. A resumed child can restore its own
   saved route. Presets are not rewritten: reselect retired `codex-host-*`
   presets yourself; pass `--profile` to replace a retired saved selection when
-  resuming. Legacy `codex-auto` presets still require `pi-auto` and normal
-  extension loading.
+  resuming. Use the same process for retired `codex-auto` presets.
 
 ## Examples
 

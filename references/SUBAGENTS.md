@@ -218,20 +218,18 @@ At parent Pi startup, the extension validates the file and warns if it is
 missing, empty, malformed, or has invalid presets/defaults. Validation does not
 create or overwrite settings. Non-UI sessions and child agents skip the warning.
 
-Each wrapper profile uses its own `$PI_CODING_AGENT_DIR/subagents.json`
-(for example, `~/.pi/agent/subagents.json` for `pi` and
-`~/.pi/agent-auto/subagents.json` for `pi-auto`). `PI_CODING_AGENT_DIR` is
-required; there is no fallback to another directory or wrapper's presets.
-Configure presets separately with `/subagents` in each wrapper.
+The launcher reads `$PI_CODING_AGENT_DIR/subagents.json` (normally
+`~/.pi/agent/subagents.json`). `PI_CODING_AGENT_DIR` is required; there is no
+fallback to another directory. Configure presets with `/subagents`.
 
-Example for `pi-auto`:
+Example for host Codex:
 
 ```json
 {
   "defaultProfile": "light",
   "profiles": {
-    "light": { "model": "codex-auto/gpt-6-luna", "thinkingLevel": "high" },
-    "deep": { "model": "codex-auto/gpt-6.1-sol", "thinkingLevel": "medium" }
+    "light": { "model": "codex-host/gpt-6.2-sol", "thinkingLevel": "low" },
+    "deep": { "model": "codex-host/gpt-6.2-sol", "thinkingLevel": "high" }
   }
 }
 ```
@@ -251,7 +249,6 @@ or existing resumed selections.
 
 The UI lists only models Pi reports available through configured credentials
 in the current parent; quota and service availability are not checked.
-Legacy `codex-auto` requires `pi-auto` and the provider extension; it is
-unavailable with `--no-inherit-resources`. Choosing a preset does not install a
-provider or supply credentials. Use provider-qualified `openai-codex/...` presets to select upstream
-Codex explicitly.
+Choosing a preset does not install a provider or supply credentials. If a
+saved selection still uses the retired `codex-auto` provider, set a
+`codex-host/...` preset and use `--profile` to resume with it.

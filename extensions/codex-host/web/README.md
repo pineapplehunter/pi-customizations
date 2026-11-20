@@ -32,7 +32,7 @@ and normal chat transport rather than the search endpoint.
 
 ## Activate from a host terminal
 
-1. After review, apply the NixOS/Home Manager change containing `codex_search.mjs`
+1. After review, apply the NixOS/Home Manager change containing `codex_search.mts`
    and the broker wiring. Start `pi-codex-host.socket` if not active, restart
    `pi-codex-host.service` if running an old build, and make sure the desired
    host account is configured. Update `pi-customizations` normally.

@@ -79,6 +79,13 @@ completion delivery/log browsing. The private
 See [Review inbox](extensions/review-inbox/README.md) for asynchronous browser Q&A,
 SSH forwarding, and the setup and development instructions.
 
+Two virtual skills link to upstream guidance instead of bundling it:
+
+- [`grill-me`](skills/personal/grill-me/SKILL.md) runs Matt Pocock's design
+  interview in the browser review inbox.
+- [`modern-web-guidance`](skills/personal/modern-web-guidance/SKILL.md) routes
+  web work to Chrome's current platform guides.
+
 The TODO directory/status and skill initializer helpers use dependency-free
 TypeScript, directly runnable with `node scripts/<helper>.ts`. The skill YAML
 validator still requires Python 3 and PyYAML. Individual vendored skills have

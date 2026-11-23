@@ -9,7 +9,7 @@ description: "Launch, resume, and inspect Pi subagents. Use for focused reviews 
 
 This skill requires the host-side `pi-subagent` launcher/runner and Bubblewrap
 from the nixos-config wrapper, plus the Pueue core and private subagent adapter
-in the installed snapshot. The Pueue extension creates its own daemon; this
+in the Pi-managed `pi-customizations` package. The Pueue extension creates its own daemon; this
 Pi package does not install the host launcher or sandbox. Check
 `command -v pi-subagent` and `PI_CODING_AGENT_DIR` before use. Without that setup, do the work locally rather
 than assuming ordinary Pi provides these integrations. The authoritative

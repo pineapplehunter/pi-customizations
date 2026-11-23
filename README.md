@@ -12,7 +12,7 @@ Skills are grouped by provenance:
 
 Pi discovers both groups recursively. The Pueue skill lives with its standalone
 package at `extensions/pueue-tool/skills/pueue/`. Skill names and `/skill:<name>`
-commands are unchanged. `pi-update` copies both complete trees. Path-based
+commands are unchanged. `pi-update` installs both complete trees. Path-based
 package filters referencing the old `skills/<name>/` paths must be updated to
 include the group.
 
@@ -28,32 +28,22 @@ pi-update --local /absolute/path/to/pi-customizations
 pi-update
 ```
 
-Both commands **copy** resources into `~/.pi/customizations/package/` and update
-all configured global Pi packages, including external and manually installed
-packages. `--local` uses even uncommitted source changes, never edits/fetches your
-checkout, and does not leave Pi loading directly from it. Plain `pi-update`
-shallow-clones `https://github.com/pineapplehunter/pi-customizations`, branch
-`main`. Override with `--repo URL`, `--branch NAME`, or `PI_CUSTOMIZATIONS_REPO`
-and `PI_CUSTOMIZATIONS_BRANCH`. Local mode still requires network access for
-external package updates. Neither command updates the Pi executable itself.
+Both modes hand a local npm tarball to `pi install`, so Pi installs the resources
+and their dependencies. `--local` includes uncommitted edits without modifying
+or fetching the checkout. Plain `pi-update` shallow-clones
+`https://github.com/pineapplehunter/pi-customizations` at `main`; override it with
+`--repo URL`, `--branch NAME`, `PI_CUSTOMIZATIONS_REPO`, or
+`PI_CUSTOMIZATIONS_BRANCH`. Neither mode publishes the tarball or updates Pi itself.
 
-Run `/reload` or restart Pi after updating; restart when host infrastructure
-changes. Edit this source repository, not installed copies: the next update
-replaces the whole managed snapshot, removing obsolete managed resources.
-The previous snapshot is retained at `~/.pi/customizations/previous/` until the
-next installation; this is not automatic rollback.
+The package is installed under `~/.pi/agent/npm/node_modules/pi-customizations`.
+The active tarball and external package ownership state live in
+`~/.pi/agent/pi-update/`. After a successful migration, the updater removes the
+old copied snapshots and their settings entry. It leaves unrelated files alone.
 
-The updater merges package entries and copies `AGENTS.md`. It preserves other
-settings and unrelated packages. Manual filters/version overrides are preserved;
-entries it owns are tracked in `~/.pi/customizations/managed-packages.json`.
-The updater targets `~/.pi/agent`. Authentication, sessions, model preferences,
-keybindings, trust, and host MCP settings are not copied or managed here.
-
-Invalid sources or clone failures leave the installed snapshot alone. An external
-package failure exits nonzero but leaves the new snapshot/settings installed;
-external package updates are not transactional. Correct the problem and rerun.
-Do not edit settings concurrently with an update. The updater only removes
-obsolete files in its own snapshot, never arbitrary user skill directories.
+The updater merges external package entries, copies `AGENTS.md`, and refreshes
+global packages. It preserves unrelated settings, auth, and sessions. Package
+updates are not transactional; an external update failure can leave the new
+customizations installed. Fix the error and rerun. Restart Pi after updating.
 
 ## Use with ordinary Pi (Ubuntu and other systems)
 
@@ -61,12 +51,14 @@ With a current Pi and Node.js 22.18 or newer:
 
 ```sh
 pi install git:github.com/pineapplehunter/pi-customizations@main
-# Or try a checkout for one invocation:
-pi -e /absolute/path/to/pi-customizations
+# Or install runtime dependencies and try a checkout for one invocation:
+cd /absolute/path/to/pi-customizations
+npm ci --omit=dev --legacy-peer-deps --ignore-scripts
+pi -e .
 ```
 
 Those are native Pi operations and may load a Git/local package directly; only
-`pi-update` implements the personal copy-based workflow. `pi install` loads the
+`pi-update` implements the personal workflow above. `pi install` loads the
 extensions and skills, **not** the updater-specific `settings.json` or shared
 `AGENTS.md`. To adopt those too, install the sources listed in `settings.json`
 with `pi install <source>` and merge the instructions into your agent directory.
@@ -84,6 +76,8 @@ See [brokered web tools](extensions/codex-host/web/README.md) for web setup and
 [Pueue](extensions/pueue-tool/README.md) for independent installation and
 completion delivery/log browsing. The private
 [subagent adapter](extensions/subagent-pueue/README.md) is not part of that package.
+See [Review inbox](extensions/review-inbox/README.md) for asynchronous browser Q&A,
+SSH forwarding, and the setup and development instructions.
 
 The TODO directory/status and skill initializer helpers use dependency-free
 TypeScript, directly runnable with `node scripts/<helper>.ts`. The skill YAML
@@ -99,6 +93,7 @@ other managed Pi settings requires an explicit updater change rather than
 overwriting users' preferences. Project-specific NixOS skills remain in nixos-config's `.pi/skills`.
 
 ```sh
+npm install --legacy-peer-deps
 npm test
 ```
 

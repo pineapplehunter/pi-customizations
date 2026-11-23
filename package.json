@@ -13,6 +13,10 @@
     "@earendil-works/pi-tui": "*",
     "typebox": "*"
   },
+  "dependencies": {
+    "markdown-it": "14.3.3",
+    "ws": "8.23.0"
+  },
   "pi": {
     "extensions": ["extensions/*.ts", "extensions/*/index.ts"],
     "skills": ["skills", "extensions/pueue-tool/skills"]

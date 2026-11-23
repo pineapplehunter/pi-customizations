@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Review inbox · Pi</title>
+  <script async src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.5/dist/index.global.js"
+    integrity="sha384-t+qLIxS5zM/KF99/doWY+dxTsavdvgayaZt8A9ntLsUjEkiXzYl5M3Ij8zVFPL9j"
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <style type="text/tailwindcss">
+    @theme inline {
+      --color-ground: var(--ground);
+      --color-paper: var(--paper);
+      --color-ink: var(--ink);
+      --color-muted: var(--muted);
+      --color-rule: var(--rule);
+      --color-accent: var(--accent);
+      --color-on-accent: var(--on-accent);
+      --color-warning: var(--warning);
+    }
+
+    @layer base {
+      :root {
+        color-scheme: light dark;
+        --ground: Canvas;
+        --paper: Canvas;
+        --ink: CanvasText;
+        --muted: CanvasText;
+        --rule: ButtonBorder;
+        --accent: LinkText;
+        --on-accent: Canvas;
+        --warning: CanvasText;
+      }
+      :root:has(meta[name="color-scheme"][content="light"]) { color-scheme: light; }
+      :root:has(meta[name="color-scheme"][content="dark"]) { color-scheme: dark; }
+      @supports (color: light-dark(white, black)) {
+        :root {
+          --ground: light-dark(#eaf0f6, #141f2b);
+          --paper: light-dark(#fafcfe, #1e2d3c);
+          --ink: light-dark(#142938, #ecf3fa);
+          --muted: light-dark(#455d70, #b4c6d8);
+          --rule: light-dark(#849caf, #6d8499);
+          --accent: light-dark(#194cac, #a9ceff);
+          --on-accent: light-dark(#fff, #142938);
+          --warning: light-dark(#842821, #ffc0ba);
+        }
+      }
+      [hidden] { display: none !important; }
+      :focus-visible { @apply outline-2 outline-offset-3 outline-accent; }
+    }
+
+    @layer components {
+      .review-card { @apply rounded-sm border border-s-4 border-rule border-s-accent bg-paper; }
+      #answered .review-card { @apply border-s-rule; }
+      .review-card summary { @apply cursor-pointer px-4 py-3 font-semibold wrap-anywhere; }
+      .review-card summary::marker { @apply text-accent; }
+      .review-control { @apply min-h-10 rounded-sm border border-rule bg-paper px-3 py-1.5 text-sm; }
+      button.review-control { @apply cursor-pointer disabled:cursor-default disabled:opacity-60; }
+      button.review-control[aria-pressed="true"] { @apply border-accent bg-ground inset-shadow-[0_-2px_0_var(--accent)]; }
+      button.review-submit { @apply border-accent bg-accent px-4 font-semibold text-on-accent; }
+
+      /* Markdown is rendered on the server, so its elements do not have classes. */
+      .context { @apply wrap-anywhere; }
+      .context > * + * { @apply mt-3; }
+      .context :is(h1, h2, h3, h4, h5, h6) { @apply text-lg font-semibold; }
+      .context a { @apply text-accent underline; }
+      .context ul { @apply list-disc ps-6; }
+      .context ol { @apply list-decimal ps-6; }
+      .context blockquote { @apply border-s-2 border-rule ps-3 text-muted; }
+      .context pre { @apply overflow-auto bg-ground p-3; }
+      .context table { @apply block overflow-auto border-collapse; }
+      .context :is(td, th) { @apply border border-rule px-2 py-1; }
+    }
+  </style>
+  <script type="module" src="app.js"></script>
+</head>
+<body class="bg-ground text-ink">
+  <main class="mx-auto w-[calc(100%-2rem)] max-w-[46rem] pt-[clamp(1.5rem,6vw,4rem)] pb-16">
+    <header class="flex flex-wrap items-start justify-between gap-4 border-b border-rule pb-4">
+      <div>
+        <h1 class="font-serif text-[clamp(2.25rem,7vw,4rem)] leading-none font-semibold tracking-tight">Review inbox<span class="ml-2 font-sans text-base font-medium tracking-normal whitespace-nowrap text-muted">/ Pi</span></h1>
+        <p id="status" role="status" class="mt-3 text-muted">Connecting to Pi…</p>
+      </div>
+      <div id="theme-control" class="flex items-center gap-2 text-sm" hidden>
+        <label for="theme">Theme</label>
+        <select id="theme" class="review-control">
+          <option value="light dark">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+    </header>
+    <p id="error" role="alert" class="mt-3 text-warning" hidden></p>
+    <section aria-labelledby="pending-label" class="mt-7" hidden>
+      <h2 id="pending-label" class="mb-2 flex items-center gap-3 font-semibold">Needs response <span id="pending-count" class="text-sm tabular-nums text-muted"></span></h2>
+      <div id="pending" class="grid gap-2"></div>
+    </section>
+    <section aria-labelledby="answered-label" class="mt-7" hidden>
+      <h2 id="answered-label" class="mb-2 flex items-center gap-3 font-semibold">Resolved <span id="answered-count" class="text-sm tabular-nums text-muted"></span></h2>
+      <div id="answered" class="grid gap-2"></div>
+    </section>
+  </main>
+</body>
+</html>

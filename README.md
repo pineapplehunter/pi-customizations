@@ -79,6 +79,14 @@ completion delivery/log browsing. The private
 See [Review inbox](extensions/review-inbox/README.md) for asynchronous browser Q&A,
 SSH forwarding, and the setup and development instructions.
 
+The [Git status extension](extensions/git-status.ts) uses a custom footer to put
+plain-text counts next to the branch, e.g. `~/src/project (main !2 ?1)`. It shows
+conflicts (`=`), staged changes (`+`), worktree edits (`!`), renames (`»`),
+deletions (`✘`), untracked entries (`?`), and locally known ahead (`⇡`) and
+behind (`⇣`) counts. Renames and deletions count as staged changes too if
+staged. Counts are hidden when there’s nothing to report. Requires Git 2.45 or
+later. Only one extension can provide Pi’s custom footer at a time.
+
 Two virtual skills link to upstream guidance instead of bundling it:
 
 - [`grill-me`](skills/personal/grill-me/SKILL.md) runs Matt Pocock's design

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-only
 import { spawn, type ChildProcess } from "node:child_process";
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
 import { matchesKey, Text, truncateToWidth, visibleWidth, type TUI } from "@earendil-works/pi-tui";

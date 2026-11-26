@@ -2,7 +2,7 @@
 
 The independently publishable `pi-pueue` package lives in this directory. It
 contains the generic extension, callback helper, skill, and minimal tests.
-The repository root GPLv3-only license applies. The surrounding repository
+The repository root GPLv3-or-later license applies. The surrounding repository
 provides a separate private integration at
 `../subagent-pueue/`; host launcher/runner sources remain in
 `nixos-config/home/pi-coding-agent/pineapplehunter/tools/subagents/`.

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-only
 function contentText(content: any): string {
   if (typeof content === "string") return content;
   return Array.isArray(content) ? content.map((part) => part.type === "text" ? part.text : `[${part.type}]`).join("\n") : "";

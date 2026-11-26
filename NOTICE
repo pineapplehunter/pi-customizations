@@ -1,9 +1,9 @@
 Pi customizations
 Copyright Shogo Takata
 
-Personal contributions are licensed under the GNU General Public License,
-Version 3 only (SPDX: GPL-3.0-only).
-Third-party files retain their original licenses and notices.
+This repository’s original work is licensed under the GNU General Public
+License, version 3 or (at your option) any later version.
+Third-party material retains its original licenses and notices.
 
 Includes skills from Anthropic, PBC and its contributors (Apache-2.0),
 and font assets under the SIL Open Font License. See CREDITS.md,

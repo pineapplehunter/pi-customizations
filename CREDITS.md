@@ -7,7 +7,7 @@ in [Shogo Takata's nixos-config](https://github.com/pineapplehunter/nixos-config
 under `home/pi-coding-agent/pineapplehunter`, at revision
 `927c2b6d3e71f5928804b2a9da57abaec5941038`.
 
-Personal contributions are licensed under GPL-3.0-only. Third-party material
+This repository’s original work is licensed under GPL-3.0-or-later. Third-party material
 retains its original licenses and notices, as described below.
 
 ## Anthropic skills
@@ -22,7 +22,7 @@ Each selected skill has an Apache-2.0 `LICENSE.txt`, retained alongside all
 scripts, references, and assets. Fonts in
 `skills/anthropic/canvas-design/canvas-fonts/` retain their separate SIL Open Font
 License notices and author credits. Those
-font licenses are not replaced by this repository's Apache license.
+font licenses are separate from the skills’ Apache-2.0 license.
 
 `doc-coauthoring` was previously selected by Nix but is deliberately not vendored:
 that revision contains no skill-local license, and its general README does not

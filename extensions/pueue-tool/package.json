@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Private per-instance Pueue queues, automatic completion turns, and log browsing for Pi",
   "type": "module",
-  "license": "GPL-3.0-only",
+  "license": "GPL-3.0-or-later",
   "author": "Shogo Takata",
   "keywords": ["pi-package", "pueue"],
   "repository": {

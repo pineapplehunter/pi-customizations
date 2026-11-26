@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-only
 import { readdirSync, unlinkSync, watch, type FSWatcher } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";

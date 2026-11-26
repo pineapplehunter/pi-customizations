@@ -2,7 +2,9 @@
 
 **Upstream:** Nico Bailon's [`nicobailon/pi-web-access`](https://github.com/nicobailon/pi-web-access)
 (MIT). The patch base is the [published npm 0.48.0 tarball](https://registry.npmjs.org/pi-web-access/-/pi-web-access-0.48.0.tgz),
-not a build from upstream `main`. See [Upgrading the upstream package](#upgrading-the-upstream-package).
+not a build from upstream `main`. The [MIT notice](LICENSE) applies to the
+upstream material; local contributions are GPL-3.0-or-later.
+See [Upgrading the upstream package](#upgrading-the-upstream-package).
 
 `web_search` and `source_check` use the host Codex account when the active Pi
 model belongs to `codex-host`. To opt into the broker even with a different

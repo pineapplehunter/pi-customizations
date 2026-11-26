@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-only
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { chmodSync, closeSync, mkdirSync, mkdtempSync, openSync, rmSync, writeFileSync } from "node:fs";
 import { availableParallelism, tmpdir } from "node:os";

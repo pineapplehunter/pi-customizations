@@ -118,7 +118,9 @@ also describes the host-side requirements.
 
 ## Licenses and upstream refreshes
 
-Personal contributions are GPL-3.0-only. The [upstream inventory](CREDITS.md#patched-tools-and-compatibility-references)
+This repository’s original work is licensed under GPL-3.0-or-later.
+Vendored Anthropic skills and their assets keep their upstream licenses.
+The [upstream inventory](CREDITS.md#patched-tools-and-compatibility-references)
 records the original projects, pinned releases, and upgrade instructions for
 patched tools and compatibility references. See also `NOTICE`, `upstream.json`,
 and the original licenses kept with vendored skills and font assets.

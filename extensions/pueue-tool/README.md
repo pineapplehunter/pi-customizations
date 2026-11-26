@@ -72,6 +72,4 @@ npm test
 ```
 
 Tests use Node's built-in runner. Real-daemon tests require Pueue on `PATH`.
-The package source is **GPL-3.0-only**; see the
-[repository root LICENSE](https://github.com/pineapplehunter/pi-customizations/blob/main/LICENSE).
-Include that license when redistributing this directory on its own.
+The package source is licensed under **GPL-3.0-or-later**; see [LICENSE](LICENSE).

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-only
 import { statSync } from "node:fs";
 import { join } from "node:path";
 import type { Task } from "./hooks.ts";

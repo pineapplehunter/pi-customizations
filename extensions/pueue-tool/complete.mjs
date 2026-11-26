@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-only
 // Pueue interpolates only its numeric task ID. Never interpolate task commands
 // or output into the callback shell command.
 import { randomUUID } from "node:crypto";

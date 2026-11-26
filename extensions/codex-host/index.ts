@@ -1,9 +1,11 @@
+import { createHmac, randomBytes } from "node:crypto";
 import { request, type IncomingMessage } from "node:http";
 import {
   lazyStream,
   type Api,
   type AssistantMessageEvent,
   type Model,
+  type ModelsApiStreamOptions,
   type Provider,
   type SimpleStreamOptions,
   type TranscriptContext,
@@ -23,7 +25,7 @@ function connect(socketPath: string, path: string, signal?: AbortSignal, data?: 
     const req = request({
       socketPath, path, signal, agent: false, method: body ? "POST" : "GET",
       headers: body ? { "Content-Type": "application/json", "Content-Length": body.length,
-        ...(path === "/v1/chat" ? { "X-Pi-Codex-Route-Events": "1" } : {}) } : undefined,
+        ...(path === "/v1/chat" ? { "X-Pi-Codex-Route-Events": "1", "X-Pi-Codex-Status-Events": "1" } : {}) } : undefined,
     }, resolve);
     req.on("error", reject);
     req.end(body);
@@ -39,6 +41,8 @@ async function readJson<T>(res: IncomingMessage): Promise<T> {
 export default async function (pi: ExtensionAPI): Promise<void> {
   const socket = process.env.PI_CODEX_HOST_SOCKET;
   if (!socket) return;
+  // Two Pi clients using the same logical session ID must not share a live socket.
+  const sessionNamespace = randomBytes(32);
 
   let catalog: Catalog | undefined;
   let checkedAt = 0;
@@ -188,10 +192,12 @@ export default async function (pi: ExtensionAPI): Promise<void> {
     })());
   });
 
-  const run = (model: Model<Api>, context: TranscriptContext, options?: SimpleStreamOptions) =>
+  type ChatOptions = SimpleStreamOptions | ModelsApiStreamOptions<Api>;
+  const run = (model: Model<Api>, context: TranscriptContext, options?: ChatOptions, full = false) =>
     lazyStream(model, async () => {
       const version = sessionVersion;
-      const fastRequested = fast;
+      const tier = full && options && "serviceTier" in options ? options.serviceTier : undefined;
+      const fastRequested = fast || tier === "priority";
       const selectedRoute = route;
       const available = await discover(options?.signal);
       const selected = selectedRoute ?? automaticRoute(available.routes);
@@ -200,18 +206,31 @@ export default async function (pi: ExtensionAPI): Promise<void> {
       }
       const data = {
         model: model.id, route: selected, messages: context.messages,
-        reasoning: options?.reasoning, sessionId: options?.sessionId, maxTokens: options?.maxTokens,
+        reasoning: options && "reasoning" in options ? options.reasoning : undefined,
+        full: full || undefined,
+        reasoningEffort: options && "reasoningEffort" in options ? options.reasoningEffort : undefined,
+        reasoningSummary: options && "reasoningSummary" in options ? options.reasoningSummary : undefined,
+        textVerbosity: options && "textVerbosity" in options ? options.textVerbosity : undefined,
+        transport: options?.transport ?? "auto", websocketConnectTimeoutMs: options?.websocketConnectTimeoutMs,
+        disableContinuation: options?.disableContinuation,
+        toolChoice: options && "toolChoice" in options ? options.toolChoice : undefined, temperature: options?.temperature, cacheRetention: options?.cacheRetention,
+        sessionId: options?.sessionId && options?.transport !== "sse"
+          ? createHmac("sha256", sessionNamespace).update(options.sessionId).digest("hex") : options?.sessionId,
+        maxTokens: options?.maxTokens, timeoutMs: options?.timeoutMs,
+        maxRetries: options?.maxRetries, maxRetryDelayMs: options?.maxRetryDelayMs,
       };
       const payload = await options?.onPayload?.(data, model);
       if (payload !== undefined && (!payload || typeof payload !== "object" || Array.isArray(payload))) {
         throw new Error("Codex broker payload must be an object.");
       }
       const res = await connect(socket, "/v1/chat", options?.signal, {
-        ...(payload ?? data), route: selected, model: model.id, fast: fastRequested,
+        ...(payload ?? data), route: selected, model: model.id, fast: fastRequested, serviceTier: tier,
       });
       try {
-        // These are only the broker's response headers, never upstream auth or headers.
-        await options?.onResponse?.({ status: res.statusCode ?? 0, headers: {} }, model);
+        // Older brokers cannot report upstream HTTP status.
+        if (res.headers["x-pi-codex-status-events"] !== "1") {
+          await options?.onResponse?.({ status: res.statusCode ?? 0, headers: {} }, model);
+        }
         if (res.statusCode !== 200) {
           throw new Error((await readJson<{ error: string }>(res)).error);
         }
@@ -228,7 +247,11 @@ export default async function (pi: ExtensionAPI): Promise<void> {
             const lines = pending.split("\n");
             pending = lines.pop()!;
             for (const line of lines) {
-              const event = JSON.parse(line) as AssistantMessageEvent | { type: "codex-account"; account: Account };
+              const event = JSON.parse(line) as AssistantMessageEvent | { type: "codex-account"; account: Account } | { type: "codex-status"; status: number };
+              if (event.type === "codex-status") {
+                await options?.onResponse?.({ status: event.status, headers: {} }, model);
+                continue;
+              }
               if (event.type === "codex-account") {
                 if (selected === "auto" && version === sessionVersion) {
                   autoAccount = event.account;
@@ -269,7 +292,7 @@ export default async function (pi: ExtensionAPI): Promise<void> {
       await context.publish({ update: () => { models = fresh; } });
       if (result.warning && context.allowNetwork) throw new Error(result.warning);
     },
-    stream: run, streamSimple: run,
+    stream: (model, context, options) => run(model, context, options, true), streamSimple: run,
   };
   pi.registerProvider(provider);
 }

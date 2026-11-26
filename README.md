@@ -79,6 +79,13 @@ completion delivery/log browsing. The private
 See [Review inbox](extensions/review-inbox/README.md) for asynchronous browser Q&A,
 SSH forwarding, and the setup and development instructions.
 
+Use `/loop <prompt>` to arm a repeat prompt without starting a run. After the
+agent finishes, Pi sends that prompt again unless Pueue reports a running job.
+Pueue delivers completion results as usual; the loop checks again after the
+agent handles them. Without Pueue, the loop runs normally. The agent can call
+`stop_loop` when the task is done, or you can use `/loop off`. Aborting a run,
+changing sessions or branches, or reloading also disarms the loop.
+
 The [Git status extension](extensions/git-status.ts) uses a custom footer to put
 plain-text counts next to the branch, e.g. `~/src/project (main !2 ?1)`. It shows
 conflicts (`=`), staged changes (`+`), worktree edits (`!`), renames (`»`),

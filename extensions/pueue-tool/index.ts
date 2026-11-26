@@ -15,11 +15,14 @@ function taskKey(task: Task): string | undefined {
   return JSON.stringify([task.id, task.status.Done.start, task.status.Done.end]);
 }
 
+function isRunning(task: Task): boolean {
+  return task.status === "Running" || (typeof task.status === "object" && "Running" in task.status);
+}
+
 function runningStatus(tasks: Task[]): string | undefined {
   const counts = new Map<string, number>();
   for (const task of tasks) {
-    const status = typeof task.status === "string" ? task.status : Object.keys(task.status)[0];
-    if (status === "Running") counts.set(task.group, (counts.get(task.group) ?? 0) + 1);
+    if (isRunning(task)) counts.set(task.group, (counts.get(task.group) ?? 0) + 1);
   }
   if (!counts.size) return undefined;
   if (counts.size === 1 && counts.has("default")) return `pueue: ${counts.get("default")}`;
@@ -240,20 +243,22 @@ export default function (pi: ExtensionAPI) {
     if (!context) return;
     return exclusive(async () => {
       ready = false;
-      if (event.outcome !== "completed") {
-        runtime!.paused = true;
-        failure = `Agent run ${event.outcome}; background results were not all processed.`;
-        return;
-      }
-      if (failure || runtime!.error) return;
-      for (const key of included) {
-        runtime!.processed.add(key);
-        runtime!.queued.delete(key);
-      }
-      included.clear();
-      if (runtime!.paused) return;
+      let running = false;
       try {
+        if (event.outcome !== "completed") {
+          runtime!.paused = true;
+          failure = `Agent run ${event.outcome}; background results were not all processed.`;
+          return;
+        }
+        if (failure || runtime!.error) return;
+        for (const key of included) {
+          runtime!.processed.add(key);
+          runtime!.queued.delete(key);
+        }
+        included.clear();
+        if (runtime!.paused) return;
         const { tasks, fresh } = await collect();
+        running = tasks.some(isRunning);
         if (fresh.length) {
           enqueue(fresh);
           return { entries: [{ type: "custom_message" as const, ...completionMessage(fresh) }], continue: true };
@@ -265,6 +270,7 @@ export default function (pi: ExtensionAPI) {
           return key !== undefined && runtime!.processed.has(key);
         }) && runtime!.queued.size === 0 && !event.continue && !ctx.hasPendingMessages();
       } catch (error) { warn(ctx, error); }
+      finally { pi.events.emit("pueue:running", running && !runtime?.paused && !failure && !runtime?.error); }
     });
   });
 

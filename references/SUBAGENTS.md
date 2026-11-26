@@ -146,6 +146,9 @@ Pi process and exports those variables for subsequent commands. Print/JSON mode
 starts no daemon. Reload/new/resume/fork in the same process preserve the daemon;
 quit kills tasks/daemon and removes its tempdir. Desktop service sockets and the
 parent Pueue socket are not mounted; no inherited config/host queue is attached.
+The Pi Remote wrapper supplies a separate ticket-only D-Bus listener to workers:
+`PiRemoteTicket1.RequestTicket` is allowed, while parent-only capabilities such
+as Git signing are not. Each worker gets an independent gateway registration.
 
 ## Prompt and results
 

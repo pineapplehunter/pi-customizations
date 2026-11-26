@@ -47,9 +47,6 @@ export default function (pi: ExtensionAPI) {
         `${reply.comment ? "Comment on retracted card" : index === 0 ? "Answer" : "Follow-up"} for ${card.title} [${card.id}], Round ${roundNumber}\n`
         + [reply.choice !== undefined ? `Selected: ${reply.choice}` : "", reply.text].filter(Boolean).join("\n")
       ));
-      if (!current.store.pending) responses.push(current.store.hasRetractions
-        ? "No review cards need a response. Continue the discussion in the Pi prompt."
-        : "All review cards are answered. Continue the discussion in the Pi prompt.");
       pi.sendMessage({ customType: MESSAGE, content: responses.join("\n\n"), details: { ids }, display: true }, {
         triggerTurn: true, deliverAs: "steer",
       });

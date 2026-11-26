@@ -11,9 +11,9 @@ as **Approve** and **Request changes**), and local PNG, JPEG, or WebP attachment
 Pick a choice, write your own answer, or do both, then select **Done**. Pi wakes
 up or receives the answer at its next steering point. You can add comments to
 answered cards while any card remains unanswered. Saving the final answer shuts
-down the server; continue the discussion in the Pi prompt. You can leave the
-browser tab open: it reconnects automatically when the server starts for the
-next review. The **Theme** menu lets you choose System, Light, or Dark.
+down the server. You can leave the browser tab open: it reconnects automatically
+when the server starts for the next review. The **Theme** menu lets you choose
+System, Light, or Dark.
 
 Pi can call `review_update` with a `card_id`, Markdown `body`, and optional
 `options` to ask a follow-up on the same card. Rounds appear oldest first, each

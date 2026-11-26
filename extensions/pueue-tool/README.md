@@ -61,9 +61,6 @@ The shared `pi.events` bus provides these hooks:
   settlement only when every retained task is terminal and its completion has
   been included in model context followed by a completed run. Errors never
   report readiness. The core never shuts down Pi itself.
-- `pueue:running`: before final agent settlement, report a boolean indicating
-  whether the queue check found a running job. Paused, queued, and finished
-  jobs do not count. Reports `false` if the check is skipped or fails.
 
 Listeners must unsubscribe on session shutdown. Formatting hooks are synchronous;
 async handlers are not awaited. No integration is required for ordinary use.

@@ -72,9 +72,34 @@ export function pueue(runtime: Runtime, args: string[], timeout = 5_000): Promis
   });
 }
 
+async function queryStatus(runtime: Runtime) {
+  return JSON.parse(await pueue(runtime, ["status", "--json"])) as {
+    tasks: Record<string, Task>; groups: Record<string, { status: string }>;
+  };
+}
+
 export async function queryTasks(runtime: Runtime): Promise<Task[]> {
-  const status = JSON.parse(await pueue(runtime, ["status", "--json"])) as { tasks: Record<string, Task> };
-  return Object.values(status.tasks);
+  return Object.values((await queryStatus(runtime)).tasks);
+}
+
+export function taskKey(task: Task): string | undefined {
+  if (typeof task.status !== "object" || !task.status.Done) return undefined;
+  return JSON.stringify([task.id, task.status.Done.start, task.status.Done.end]);
+}
+
+// Check at the point a repeat prompt would be sent. Don't create a queue or
+// attach to a parent process's queue when the Pueue extension isn't loaded.
+export async function privateQueueBlocksRepeat(): Promise<boolean> {
+  const runtime = (globalThis as typeof globalThis & { [RUNTIME]?: Runtime })[RUNTIME];
+  if (!runtime) return false;
+  const { tasks, groups } = await queryStatus(runtime);
+  return Object.values(tasks).some(task => {
+    const state = typeof task.status === "string" ? task.status : Object.keys(task.status)[0];
+    if (state === "Running") return true;
+    if (state === "Queued") return groups[task.group]?.status === "Running";
+    const key = taskKey(task);
+    return key !== undefined && !runtime.paused && !runtime.processed.has(key);
+  });
 }
 
 function executable(command: string): Promise<void> {

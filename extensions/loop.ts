@@ -1,12 +1,14 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { privateQueueBlocksRepeat } from "./pueue-tool/daemon.ts";
 
 export default function (pi: ExtensionAPI) {
   let prompt: string | undefined;
-  let pueueRunning = false;
+  let revision = 0;
 
   function stop(ctx: ExtensionContext) {
     const wasArmed = prompt !== undefined;
+    revision++;
     prompt = undefined;
     ctx.ui.setStatus("loop", undefined);
     return wasArmed ? "Loop stopped." : "No loop is armed.";
@@ -19,6 +21,7 @@ export default function (pi: ExtensionAPI) {
       if (value === "off") {
         ctx.ui.notify(stop(ctx), "info");
       } else if (value) {
+        revision++;
         prompt = value;
         ctx.ui.setStatus("loop", "loop: armed");
       } else {
@@ -37,18 +40,23 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // Pueue checks its private queue before settlement. If absent, nothing blocks.
-  const unsubscribe = pi.events.on("pueue:running", (running) => {
-    pueueRunning = running === true;
-  });
-
-  pi.on("agent_settled", (event, ctx) => {
-    const blocked = pueueRunning;
-    pueueRunning = false;
+  pi.on("agent_settled", async (event, ctx) => {
     if (!prompt) return;
-    if (event.aborted) {
-      stop(ctx);
-    } else if (blocked) {
+    if (event.aborted) { stop(ctx); return; }
+    if (ctx.hasPendingMessages()) return;
+    const current = revision;
+    let blocked: boolean;
+    try {
+      blocked = await privateQueueBlocksRepeat();
+    } catch (error) {
+      if (current === revision) {
+        stop(ctx);
+        ctx.ui.notify(`Loop stopped: cannot check the private Pueue queue. ${String(error)}`, "warning");
+      }
+      return;
+    }
+    if (current !== revision) return;
+    if (blocked) {
       ctx.ui.setStatus("loop", "loop: waiting for Pueue");
     } else {
       ctx.ui.setStatus("loop", "loop: armed");
@@ -59,8 +67,5 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_tree", (_event, ctx) => { stop(ctx); });
-  pi.on("session_shutdown", (_event, ctx) => {
-    stop(ctx);
-    unsubscribe();
-  });
+  pi.on("session_shutdown", (_event, ctx) => { stop(ctx); });
 }

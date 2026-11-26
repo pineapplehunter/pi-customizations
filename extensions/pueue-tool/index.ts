@@ -1,7 +1,7 @@
 import { readdirSync, unlinkSync, watch, type FSWatcher } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { getRuntime, queryTasks, startDaemon, stopDaemon, type Runtime } from "./daemon.ts";
+import { getRuntime, queryTasks, startDaemon, stopDaemon, taskKey, type Runtime } from "./daemon.ts";
 import { inlineCode, type CompletionFormat, type LogFormat, type QueueState, type Task } from "./hooks.ts";
 import { parseInactivityTimeout } from "./inactivity.ts";
 import { registerLogViewer } from "./logs.ts";
@@ -9,11 +9,6 @@ import { registerLogViewer } from "./logs.ts";
 const MESSAGE_TYPE = "pueue-completion";
 const RECONCILE_MS = 10_000;
 const STATUS_KEY = "usage-pueue";
-
-function taskKey(task: Task): string | undefined {
-  if (typeof task.status !== "object" || !task.status.Done) return undefined;
-  return JSON.stringify([task.id, task.status.Done.start, task.status.Done.end]);
-}
 
 function isRunning(task: Task): boolean {
   return task.status === "Running" || (typeof task.status === "object" && "Running" in task.status);
@@ -243,7 +238,6 @@ export default function (pi: ExtensionAPI) {
     if (!context) return;
     return exclusive(async () => {
       ready = false;
-      let running = false;
       try {
         if (event.outcome !== "completed") {
           runtime!.paused = true;
@@ -258,7 +252,6 @@ export default function (pi: ExtensionAPI) {
         included.clear();
         if (runtime!.paused) return;
         const { tasks, fresh } = await collect();
-        running = tasks.some(isRunning);
         if (fresh.length) {
           enqueue(fresh);
           return { entries: [{ type: "custom_message" as const, ...completionMessage(fresh) }], continue: true };
@@ -270,7 +263,6 @@ export default function (pi: ExtensionAPI) {
           return key !== undefined && runtime!.processed.has(key);
         }) && runtime!.queued.size === 0 && !event.continue && !ctx.hasPendingMessages();
       } catch (error) { warn(ctx, error); }
-      finally { pi.events.emit("pueue:running", running && !runtime?.paused && !failure && !runtime?.error); }
     });
   });
 
